@@ -234,33 +234,27 @@ items <- c(
   "PE|Production|Biomass|Lignocellulosic|Residues",
   "PE|Production|Biomass|1st Generation",
   NULL)
-showAreaAndBarPlots(data, items, orderVars = "user", scales = "fixed")
+showAreaAndBarPlots(data, items, tot = "PE|Production|Biomass", orderVars = "user", scales = "fixed")
 ```
 
-### PE Biomass Production - Energy Crops
-```{r PE Biomass - Energy Crops}
+```{r PE Biomass Production - details}
 showLinePlots(data, "PE|Production|Biomass|Lignocellulosic|Energy Crops")
-```
-
-### PE Biomass Production - Residues
-```{r PE Biomass - Residues}
 showLinePlots(data, "PE|Production|Biomass|Lignocellulosic|Residues")
-```
-
-### PE Biomass Production - SugarAndStarch
-```{r PE Biomass - Sugar and Starch Crops}
 showLinePlots(data, "PE|Production|Biomass|1st Generation|SugarAndStarch")
+showLinePlots(data, "PE|Production|Biomass|1st Generation|Sunflowers_PalmOil_others")
 ```
 
-### PE Biomass Production - Sunflowers_PalmOil_others
-```{r PE Biomass - Oil Crops}
-showLinePlots(data, "PE|Production|Biomass|1st Generation|Sunflowers_PalmOil_others")
+### PE Uranium Extraction
+```{r PE Uranium Extraction}
+showLinePlots(data, "Res|Extraction|Uranium [Energy]")
+showLinePlots(data, "Res|Extraction|Uranium")
 ```
 
 
 ## PE Consumption (after trade)
 ### PE Coal
 ```{r PE Coal}
+tot <- "PE|Coal"
 items <- c(
   "PE|Coal|Hydrogen",
   "PE|Coal|Electricity",
@@ -269,12 +263,26 @@ items <- c(
   "PE|Coal|Liquids",  
   "PE|Coal|Solids",
   NULL)
-showAreaAndBarPlots(data, items, orderVars = "user", scales = "fixed")
+
+showLinePlots(data, tot)
+showAreaAndBarPlots(data, items, tot = tot, orderVars = "user", scales = "fixed")
 ```
 
+### PE Oil
+```{r PE Oil}
+tot <- "PE|Oil"
+items <- c(
+  "PE|Oil|Electricity",
+  "PE|Oil|Liquids",  
+  NULL)
+
+showLinePlots(data, tot)
+showAreaAndBarPlots(data, items, tot = tot, orderVars = "user", scales = "fixed")
+```
 
 ### PE Gas
 ```{r PE Gas}
+tot <- "PE|Gas"
 items <- c(
   "PE|Gas|Hydrogen|w/ CC",
   "PE|Gas|Hydrogen|w/o CC",  
@@ -285,19 +293,14 @@ items <- c(
   "PE|Gas|Liquids|w/ CC",
   "PE|Gas|Liquids|w/o CC",
   NULL)
-showAreaAndBarPlots(data, items, orderVars = "user", scales = "fixed")
-```
 
-### PE Oil
-```{r PE Oil}
-items <- c(
-  "PE|Oil",
-  NULL)
-showAreaAndBarPlots(data, items, orderVars = "user", scales = "fixed")
+showLinePlots(data, tot)
+showAreaAndBarPlots(data, items, tot = tot, orderVars = "user", scales = "fixed")
 ```
 
 ### PE Biomass
 ```{r PE Biomass}
+tot <- "PE|Biomass"
 items <- c(
   "PE|Biomass|Hydrogen|w/ CC",
   "PE|Biomass|Hydrogen|w/o CC",
@@ -310,34 +313,23 @@ items <- c(
   "PE|Biomass|Liquids|w/o CC",
   "PE|Biomass|Solids",
   NULL)
-showAreaAndBarPlots(data, items, orderVars = "user", scales = "fixed")
+
+showLinePlots(data, tot)
+showAreaAndBarPlots(data, items, tot = tot, orderVars = "user", scales = "fixed")
 ```
 
-### PE Coal - Line
-```{r PE Coal}
-showLinePlots(data, "PE|Coal")
-```
-
-### PE Oil - Line
-```{r PE Oil}
-showLinePlots(data, "PE|Oil")
-```
-
-### PE Gas - Line
-```{r PE Gas}
-showLinePlots(data, "PE|Gas")
-```
-
-### PE Biomass - Line
-```{r PE Biomass}
-showLinePlots(data, "PE|Biomass")
-```
-
-### PE Geothermal - Line
+### PE Geothermal
 ```{r PE Geothermal}
-showLinePlots(data, "PE|Geothermal")
-```
+tot <- "PE|Geothermal"
+items <- c(
+  "PE|Geothermal|Heat",
+  "PE|Geothermal|Electricity",
+  NULL)
 
+showLinePlots(data, tot)
+showAreaAndBarPlots(data, items, tot = tot, orderVars = "user", scales = "fixed")
+
+```
 
 ## SE Mix
 

@@ -154,9 +154,8 @@ reportEnergyInvestment <- function(gdx, regionSubsetList = NULL,
   tmp <- mbind(tmp, setNames(inv_se(ie = "peur", oe = "seel", pe2se, adjte, v_directteinv, v_adjustteinv),                  "Energy Investments|Electricity|+|Nuclear (billion US$2017/yr)"))
   tmp <- mbind(tmp, setNames(inv_se(ie = "pesol", oe = "seel", pe2se, adjte, v_directteinv, v_adjustteinv),                 "Energy Investments|Electricity|+|Solar (billion US$2017/yr)"))
 
-  windonStr <- ifelse("windon" %in% all_te, "windon", "wind")
-  tmp <- mbind(tmp, setNames(inv_se(ie = "pewin", oe = "seel", pe2se, adjte, v_directteinv, v_adjustteinv, te = windonStr),  "Energy Investments|Electricity|Wind|+|Onshore (billion US$2017/yr)"))
-  tmp <- mbind(tmp, setNames(inv_se(ie = "pewin", oe = "seel", pe2se, adjte, v_directteinv, v_adjustteinv, te = "windoff"),  "Energy Investments|Electricity|Wind|+|Offshore (billion US$2017/yr)"))
+  tmp <- mbind(tmp, setNames(inv_se(ie = "pewin", oe = "seel", pe2se, adjte, v_directteinv, v_adjustteinv, te = "windon"),  "Energy Investments|Electricity|Wind|+|Onshore (billion US$2017/yr)"))
+  tmp <- mbind(tmp, setNames(inv_se(ie = "pewin", oe = "seel", pe2se, adjte, v_directteinv, v_adjustteinv, te = "windoff"), "Energy Investments|Electricity|Wind|+|Offshore (billion US$2017/yr)"))
 
   tmp <- mbind(tmp, setNames(inv_se(ie = "pewin", oe = "seel", pe2se, adjte, v_directteinv, v_adjustteinv),                 "Energy Investments|Electricity|+|Wind (billion US$2017/yr)"))
   tmp <- mbind(tmp, setNames(inv_se(ie = "pehyd", oe = "seel", pe2se, adjte, v_directteinv, v_adjustteinv),                 "Energy Investments|Electricity|+|Hydro (billion US$2017/yr)"))

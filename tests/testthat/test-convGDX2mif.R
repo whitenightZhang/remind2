@@ -66,9 +66,9 @@ test_that("Test if REMIND reporting is produced as it should and check data inte
 
     expect_no_warning(piamInterfaces::checkVarNames(getNames(mifContent, dim = 3)))
 
-    computedVariables <- deletePlus(getItems(mifContent, dim = 3.3))
-    computedVariables <- gsub("\\(\\)", "(unitless)", computedVariables)
-    if (! grepl("release", gdxPath)) {
+    if (!grepl("release", gdxPath)) {
+      computedVariables <- deletePlus(getItems(mifContent, dim = 3.3))
+      computedVariables <- gsub("\\(\\)", "(unitless)", computedVariables)
       checkPiamTemplates(computedVariables)
     }
 
@@ -80,7 +80,7 @@ test_that("Test if REMIND reporting is produced as it should and check data inte
             "^Emi\\|CO2\\|Energy\\|Demand\\|Industry\\|.*Fossil \\(Mt CO2/yr\\)$",
             low = 0),
           list("Share.*\\((%|Percent)\\)$", low = 0, up = 100)),
-        reaction = 'warning'))
+        reaction = "stop"))
 
     magclass::write.report(
       x = magclass::collapseNames(mifContent),

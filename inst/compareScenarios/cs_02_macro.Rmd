@@ -14,7 +14,8 @@ showLinePlots(data, "Consumption")
 showLinePlots(data, "Population")
 ```
 
-## GDP - MER
+## GDP
+### GDP - MER
 
 ```{r GDP - MER}
 showLinePlots(data, "GDP|MER")
@@ -25,7 +26,7 @@ for (item in grep("^GDP\\|MER\\|.*(Macro-Economic Climate Damage|chronic physica
 }
 ```
 
-## GDP - PPP
+### GDP - PPP
 
 ```{r GDP - PPP}
 showLinePlots(data, "GDP|PPP")
@@ -40,24 +41,24 @@ if ("Damage factor" %in% levels(data$variable)) {
 }
 ```
 
-## GDP - MER per Capita
+### GDP - MER per Capita
 
 ```{r GDP - MER per Capita}
 showLinePlots(data, "GDP|MER pCap")
 ```
 
-## GDP - PPP per Capita
+### GDP - PPP per Capita
 
 ```{r GDP - PPP per Capita}
 showLinePlots(data, "GDP|PPP pCap")
 ```
 
-## GDP - PPP growth rate
+### GDP - PPP growth rate
 ```{r GDP - PPP growth rate}
 showLinePlots(quitte::calc_growthrate(data, only.new = TRUE, filter.function = "GDP|PPP"), "GDP|PPP [Growth Rate]")
 ```
 
-## GDP - MER growth rate
+### GDP - MER growth rate
 ```{r GDP - MER growth rate}
 showLinePlots(quitte::calc_growthrate(data, only.new = TRUE, filter.function = "GDP|MER"), "GDP|MER [Growth Rate]")
 ```
@@ -207,11 +208,12 @@ walk(vars, showLinePlots, data = dPrice, scale = "fixed")
 ```{r Trade}
 vars <-
   levels(data$variable) %>%
-  str_subset("^Trade\\|[^|]*$")
+  str_subset("^Trade\\|(Uranium.)?[^|]*$")
 walk(vars, showLinePlots, data = data)
 ```
 
-## FE intensity of GDP_PPP, area plot
+## FE intensity of GDP_PPP
+### area plot
 
 ```{r FE intensity of GDP_PPP, area plot (by sector)}
 items <- c(
@@ -221,7 +223,7 @@ items <- c(
 showAreaAndBarPlots(data, items, scales = "fixed")
 ```
 
-## FE intensity of GDP_PPP, line plot
+### line plot
 
 ```{r FE intensity of GDP_PPP, line plot (by sector)}
 dIea <-

@@ -28,21 +28,22 @@ reportTrade <- function(gdx,regionSubsetList=NULL,t=c(seq(2005,2060,5),seq(2070,
   module2realisation <- readGDX(gdx, "module2realisation")
   rownames(module2realisation) <- module2realisation$modules
 
-  TWa_2_EJ        <- 31.536
+  TWa_2_EJ <- 3600 * 24 * 365 / 1e6
+  C_2_CO2 <- 44 / 12
   sm_tdptwyr2dpgj <- 31.71   #TerraDollar per TWyear to Dollar per GJ
 
-  p_eta_conv       <- readGDX(gdx,name=c("pm_dataeta","p_eta_conv"),format = "first_found")
+  pm_eta_conv      <- readGDX(gdx,name=c("pm_eta_conv"),format = "first_found")
   p_costsPEtradeMp <- readGDX(gdx,name=c("pm_costsPEtradeMp","p_costsPEtradeMp"),format = "first_found")
-  pm_pvp       <- readGDX(gdx,name=c("pm_pvp"),format = "first_found")
-  Xport        <- readGDX(gdx,name=c("vm_Xport"),field = "l",format = "first_found")
-  Mport        <- readGDX(gdx,name=c("vm_Mport"),field = "l",format = "first_found")
+  pm_pvp           <- readGDX(gdx,name=c("pm_pvp"),format = "first_found")
+  Xport            <- readGDX(gdx,name=c("vm_Xport"),field = "l",format = "first_found")
+  Mport            <- readGDX(gdx,name=c("vm_Mport"),field = "l",format = "first_found")
 
   # calculate maximal temporal resolution
   y <- Reduce(intersect,list(getYears(pm_pvp),getYears(Xport)))
-  Xport      <- Xport[,y,]
-  Mport      <- Mport[,y,]
-  pm_pvp     <- pm_pvp[,y,]
-  p_eta_conv <- p_eta_conv[,y,]
+  Xport       <- Xport[,y,]
+  Mport       <- Mport[,y,]
+  pm_pvp      <- pm_pvp[,y,]
+  pm_eta_conv <- pm_eta_conv[,y,]
 
   #AJS for current account
   set_trade <- readGDX(gdx,name=c("trade"),types = 'sets',format="first_found")
@@ -70,9 +71,9 @@ reportTrade <- function(gdx,regionSubsetList=NULL,t=c(seq(2005,2060,5),seq(2070,
   tmp <- mbind(tmp,setNames(Xport[,,"peoil"] * TWa_2_EJ,                                     "Trade|Exports|Oil (EJ/yr)"))
 
   tmp <- mbind(tmp,setNames(trade_net[,,"peur"] * 1000,                                      "Trade|Uranium|Mass (ktU/yr)"))
-  tmp <- mbind(tmp,setNames(trade_net[,,"peur"] * p_eta_conv[,,"tnrs"] * TWa_2_EJ,           "Trade|Uranium|seelEquivalent (EJ/yr)"))
-  tmp <- mbind(tmp,setNames((1-p_costsPEtradeMp[,,"peur"]) * Mport[,,"peur"] * p_eta_conv[,,"tnrs"] * TWa_2_EJ, "Trade|Imports|Uranium (ktU/yr)"))
-  tmp <- mbind(tmp,setNames(Xport[,,"peur"] * p_eta_conv[,,"tnrs"] * TWa_2_EJ,               "Trade|Exports|Uranium (ktU/yr)"))
+  tmp <- mbind(tmp,setNames(trade_net[,,"peur"] * pm_eta_conv[,,"tnrs"] * TWa_2_EJ,           "Trade|Uranium|seelEquivalent (EJ/yr)"))
+  tmp <- mbind(tmp,setNames((1-p_costsPEtradeMp[,,"peur"]) * Mport[,,"peur"] * pm_eta_conv[,,"tnrs"] * TWa_2_EJ, "Trade|Imports|Uranium (ktU/yr)"))
+  tmp <- mbind(tmp,setNames(Xport[,,"peur"] * pm_eta_conv[,,"tnrs"] * TWa_2_EJ,               "Trade|Exports|Uranium (ktU/yr)"))
 
   tmp <- mbind(tmp,setNames(trade_net[,,"good"] * 1000,                                       "Trade|Goods (billion US$2017/yr)"))
   tmp <- mbind(tmp,setNames((1-p_costsPEtradeMp[,,"good"]) * Mport[,,"good"] * 1000,          "Trade|Imports|Goods (billion US$2017/yr)"))
@@ -82,9 +83,9 @@ reportTrade <- function(gdx,regionSubsetList=NULL,t=c(seq(2005,2060,5),seq(2070,
   tmp <- mbind(tmp,setNames((1-p_costsPEtradeMp[,,"pebiolc"]) * Mport[,,"pebiolc"] * TWa_2_EJ,"Trade|Imports|Biomass (EJ/yr)") )
   tmp <- mbind(tmp,setNames(Xport[,,"pebiolc"]  * TWa_2_EJ,                                   "Trade|Exports|Biomass (EJ/yr)"))
 
-  tmp <- mbind(tmp,setNames(trade_net[,,"perm"] * 44 / 12 * 1000,                             "Trade|Emi Allowances|Volume (Mt CO2-equiv/yr)"))
-  tmp <- mbind(tmp,setNames((1-p_costsPEtradeMp[,,"perm"]) * Mport[,,"perm"] * 44 / 12 * 1000,"Trade|Imports|Emi Allowances|Volume (Mt CO2-equiv/yr)"))
-  tmp <- mbind(tmp,setNames(Xport[,,"perm"] * 44 / 12 * 1000,                                "Trade|Exports|Emi Allowances|Volume (Mt CO2-equiv/yr)"))
+  tmp <- mbind(tmp,setNames(trade_net[,,"perm"] * C_2_CO2 * 1000,                              "Trade|Emi Allowances|Volume (Mt CO2-equiv/yr)"))
+  tmp <- mbind(tmp,setNames((1-p_costsPEtradeMp[,,"perm"]) * Mport[,,"perm"] * C_2_CO2 * 1000, "Trade|Imports|Emi Allowances|Volume (Mt CO2-equiv/yr)"))
+  tmp <- mbind(tmp,setNames(Xport[,,"perm"] * C_2_CO2 * 1000,                                  "Trade|Exports|Emi Allowances|Volume (Mt CO2-equiv/yr)"))
 
   # SE Trade
   if (module2realisation["trade",2] == "se_trade") {
@@ -108,9 +109,6 @@ reportTrade <- function(gdx,regionSubsetList=NULL,t=c(seq(2005,2060,5),seq(2070,
     # for now p_costsPEtradeMp is zero for SE trade, adapt once SE trade transport cost implemented
     tmp <- mbind(tmp,setNames((1-p_costsPEtradeMp[,,"segasyn"]) * Mport[,,"segasyn"] * TWa_2_EJ, "Trade|Imports|SE|Gases|Hydrogen (EJ/yr)"))
     tmp <- mbind(tmp,setNames(Xport[,,"segasyn"] * TWa_2_EJ,                                    "Trade|Exports|SE|Gases|Hydrogen (EJ/yr)"))
-
-
-
   }
 
 

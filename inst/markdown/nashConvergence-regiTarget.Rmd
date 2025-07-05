@@ -1,0 +1,490 @@
+---
+title: "Regional emission target convergence"
+output:
+  html_document:
+    toc: false
+    toc_float: true
+    toc_depth: 5
+    code_folding: hide
+params:
+  gdx: "fulldata.gdx"
+  warning: false
+  message: false
+  figWidth: 16
+---
+
+<style>
+  #header {
+    display: none !important
+  }
+  .main-container {
+    max-width: 95% !important;
+  }
+  .toc-content {
+    padding-left: 0px !important;
+  }
+  .svg-container {
+    margin: auto !important;
+  }
+  .code-folding-btn {
+    display: none;
+  }
+</style>
+
+<script type="text/javascript">
+$(document).ready(function() {
+  var $tocItems = $(".tocify-subheader li.tocify-item"); // selector for all TOC items
+  var $tabs     = $("a[role=\"tab\"]");                  // selector for all tabs
+  var $panels   = $("div[role=\"tabpanel\"]");           // selector for all tabpanels
+
+  $tocItems.hide();  // hide all TOC items
+
+  // get the tab name for each section header (e.g. mammals)
+  // and assign it to its corresponding toc item
+  $panels.find("div[data-unique]").each(function() {
+    var key = $(this).attr("data-unique");
+    var tab = $(this).closest("div[role=\"tabpanel\"]").attr("id");
+    $tocItems.filter("[data-unique=\"" + key + "\"]").attr("tab", tab)
+  })
+  // now each toc item knows to which tab panel it is pointing
+
+  // show the toc items that point to sections on the first panel
+  $tocItems.filter(function() {
+    return($(this).attr("tab") === $tabs.first().text());
+  }).toggle();
+
+  // assign an onclick event to the tabs..
+  $tabs.on("click", function() {
+    $tocItems.hide();  // ... hide all TOC items
+    var key = $(this).text(); // ... get the name of the tab clicked
+    $tocItems.filter(function() {  // ... filter for the toc items pointing to that tab
+      return($(this).attr("tab") === key);
+    }).toggle();  // ... and show them
+  });  
+});
+</script>
+
+```{r loading_libraries, include=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(mip)
+library(gdx)
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  error = TRUE,
+  fig.width = params$figWidth,
+  message = params$message,
+  warning = params$warning
+)
+
+```
+
+```{r data, echo=FALSE, include=FALSE}
+
+pm_emiMktTarget_tolerance <-
+  mip::getPlotData("pm_emiMktTarget_tolerance", params$gdx)
+pm_emiMktTarget_dev <-
+  mip::getPlotData("pm_emiMktTarget_dev", params$gdx)
+pm_factorRescaleemiMktCO2Tax <-
+  mip::getPlotData("pm_factorRescaleemiMktCO2Tax", params$gdx)
+pm_emiMktCurrent <- mip::getPlotData("pm_emiMktCurrent", params$gdx)
+p47_emiMktCurrent_iter <-
+  mip::getPlotData("p47_emiMktCurrent_iter", params$gdx)
+pm_emiMktTarget <- mip::getPlotData("pm_emiMktTarget", params$gdx)
+pm_emiMktRefYear <- mip::getPlotData("pm_emiMktRefYear", params$gdx)
+pm_emiMktTarget_dev_iter <-
+  mip::getPlotData("pm_emiMktTarget_dev_iter", params$gdx)
+pm_taxemiMkt_iteration <-
+  mip::getPlotData("pm_taxemiMkt_iteration", params$gdx)
+pm_taxemiMkt <- mip::getPlotData("pm_taxemiMkt", params$gdx)
+regi <- gdx::readGDX(params$gdx, "regi")
+ext_regi <- gdx::readGDX(params$gdx, "ext_regi")
+regi_groupExt <- gdx::readGDX(params$gdx, "regi_groupExt")
+regi_group <- gdx::readGDX(params$gdx, "regi_group")
+emiMktGroup <- gdx::readGDX(params$gdx, "emiMktGroup")
+
+tgts <-
+  pm_emiMktTarget %>% select(ext_regi, ttot2, emiMktExt) %>% mutate_at(c('ttot2'), as.numeric) %>% mutate(group = paste0(ttot2, "_", emiMktExt))
+tgtRegions <- unique(tgts$ext_regi)
+
+p47_targetConverged_iter <-
+  mip::getPlotData("p47_targetConverged_iter", params$gdx)
+p47_emiTargetMkt_iter <-
+  mip::getPlotData("p47_emiTargetMkt_iter", params$gdx)
+p47_factorRescaleSlope_iter <-
+  mip::getPlotData("p47_factorRescaleSlope_iter", params$gdx)
+p47_factorRescaleemiMktCO2Tax_iter <-
+  mip::getPlotData("p47_factorRescaleemiMktCO2Tax_iter", params$gdx)
+#p47_ClampedRescaleSlope <- mip::getPlotData("p47_ClampedRescaleSlope", params$gdx)
+regiEmiMktRescaleType <-
+  gdx::readGDX(params$gdx, "regiEmiMktRescaleType")
+
+emiMktTarget_tolerance <-
+  setNames(
+    pm_emiMktTarget_tolerance$pm_emiMktTarget_tolerance,
+    pm_emiMktTarget_tolerance$ext_regi
+  )
+
+```
+
+```{r initializeCharts, echo=FALSE, include=FALSE}
+
+#aesthetics
+booleanColor <- c("yes" = "#00BFC4", "no" = "#F8766D")
+qttyPriceColor <- c("qtty" = "#00BFC4", "price" = "#F8766D")
+
+g <- NULL
+
+```
+
+
+
+<!-- emissions and prices -->
+```{r emiAndPrice chart, echo=FALSE, include=FALSE}
+
+#Convert regi to ext_regi and vice-versa
+convGroupExt <- NULL
+for (tgtReg in unique(tgts$ext_regi)) {
+  if (tgtReg %in% regi)
+    convGroupExt <- c(convGroupExt, setNames(tgtReg, tgtReg))
+  else
+    convGroupExt <-
+      c(convGroupExt,
+        setNames(
+          regi_groupExt %>% filter(ext_regi == tgtReg,!(all_regi %in% tgtReg)) %>% slice(1) %>% pull(all_regi),
+          tgtReg
+        ))
+}
+
+emissions <- p47_emiMktCurrent_iter %>%
+  rename(emissions = p47_emiMktCurrent_iter) %>%
+  mutate(emissions = emissions * 3.66667 * 1000) %>%
+  select(-ttot)
+
+convEmiMktGroup <-
+  setNames(emiMktGroup$all_emiMktExt, emiMktGroup$all_emiMkt)
+tmpPrice <- pm_taxemiMkt_iteration %>%
+  mutate(pm_taxemiMkt_iteration = pm_taxemiMkt_iteration * 1000 * 12 / 44) %>%
+  filter(all_regi %in% convGroupExt)
+price <- rbind(
+  tmpPrice %>%
+    mutate(
+      all_emiMktExt = convEmiMktGroup[all_emiMkt],
+      ext_regi = setNames(names(convGroupExt), convGroupExt)[all_regi]
+    ),
+  tmpPrice %>%
+    filter(all_emiMkt == "ETS") %>%
+    mutate(
+      all_emiMktExt = "all",
+      ext_regi = setNames(names(convGroupExt), convGroupExt)[all_regi]
+    )
+) %>%
+  rename(ttot2 = ttot,
+         #ext_regi = all_regi,
+         emiMktExt = all_emiMktExt) %>%
+  select(-all_emiMkt,-all_regi)
+
+plotData <-
+  left_join(
+    left_join(
+      left_join(
+        left_join(
+          left_join(
+            left_join(
+              emissions,
+              price,
+              by = c("iteration", "ttot2", "ext_regi", "emiMktExt")
+            ),
+            regiEmiMktRescaleType %>% select(-ttot) %>% rename(ttot2 = ttot1) %>% mutate(iteration = as.integer(iteration)),
+            by = c("iteration", "ttot2", "ext_regi", "emiMktExt")
+          ),
+          p47_factorRescaleSlope_iter %>% select(-ttot),
+          by = c("iteration", "ttot2", "ext_regi", "emiMktExt")
+        ),
+        p47_factorRescaleemiMktCO2Tax_iter %>% select(-ttot),
+        by = c("iteration", "ttot2", "ext_regi", "emiMktExt")
+      ),
+      p47_targetConverged_iter %>% rename(ttot2 = ttot),
+      by = c("iteration", "ttot2", "ext_regi")
+    ),
+    pm_emiMktTarget_dev_iter %>% select(-ttot),
+    by = c("iteration", "ttot2", "ext_regi", "emiMktExt")
+  ) %>%
+  mutate(
+    tooltip = paste0(
+      "Iteration : ",
+      iteration,
+      "<br>",
+      "Emissions : ",
+      round(emissions),
+      " Mt CO2<br>",
+      "Price : ",
+      round(pm_taxemiMkt_iteration),
+      " US$2005/t CO2<br>",
+      "Convergence : ",
+      ifelse(
+        is.na(p47_targetConverged_iter),
+        ifelse(
+          is.na(rescaleType),
+          "not active",
+          paste0(
+            "not converged<br>",
+            "Deviation: ",
+            round(100 * pm_emiMktTarget_dev_iter, 2),
+            "%",
+            ifelse(pm_emiMktTarget_dev_iter >= 0, " > ", " < -"),
+            round(100 * emiMktTarget_tolerance[ext_regi], 2),
+            "%<br>",
+            "Rescale for next iteration: ",
+            round(p47_factorRescaleemiMktCO2Tax_iter, 2),
+            "<br>",
+            "Rescale Type : ",
+            ifelse(
+              rescaleType %in% c("slope_prevIteration", "slope_firstIteration"),
+              paste0(
+                rescaleType,
+                " ( slope=",
+                round(p47_factorRescaleSlope_iter, 2),
+                ")"
+              ),
+              rescaleType
+            )
+          )
+        ),
+        "converged"
+      )
+    )
+  )
+
+g[["qtty_and_price"]] <-
+  lapply(setNames(tgtRegions, tgtRegions), function(reg) {
+    subGroup <-
+      setNames(
+        tgts %>% filter(ext_regi == reg) %>% pull(ttot2),
+        tgts %>% filter(ext_regi == reg) %>% pull(group)
+      )
+    lapply(subGroup, function(tgtPeriod) {
+      d <- plotData %>% filter(ext_regi == reg, ttot2 == tgtPeriod)
+      secAxisScale <-
+        max(d %>% pull(pm_taxemiMkt_iteration)) / max(d %>% pull(emissions))
+      
+      p <- plot_ly(data = d, height = 350) %>% #
+        add_trace(
+          x = ~ iteration,
+          y = ~ emissions,
+          name = "Emissions",
+          mode = "lines",
+          type = "scatter",
+          line = list(color = qttyPriceColor["qtty"]),
+          hoverinfo = "none",
+          hoverinfo = 'skip'
+        ) %>%
+        add_trace(
+          x = ~ iteration,
+          y = ~ pm_taxemiMkt_iteration,
+          name = "Price",
+          yaxis = "y2",
+          mode = "lines",
+          type = "scatter",
+          line = list(color = qttyPriceColor["price"]),
+          hoverinfo = "none",
+          hoverinfo = 'skip'
+        ) %>%
+        # add trace only for hover info (hack to disable line in hovermode = "x unified"
+        add_trace(
+          x = ~ iteration,
+          y = ~ emissions,
+          mode = "lines",
+          type = "scatter",
+          hoverinfo = "text",
+          line = list(width = 0),
+          hovertext = d$tooltip
+        ) %>%
+        layout(
+          hovermode = "x unified",
+          showlegend = FALSE,
+          margin = list(r = 60),
+          xaxis = list(
+            zeroline = FALSE,
+            range = c(0.5, max(d$iteration) + 0.5),
+            title = "Iterations",
+            gridcolor = "#e8e8e8",
+            mirror = TRUE,
+            ticks = 'outside',
+            showline = TRUE,
+            linecolor = "#adadad",
+            linewidth = 2#, tickcolor = "#e8e8e8", tickwidth = 3
+          ),
+          yaxis = list(
+            zeroline = TRUE,
+            zerolinecolor = "#e8e8e8",
+            zerolinewidth = 3,
+            title = list(text = "Emissions (Mt CO2)", font = list(color =
+                                                                    qttyPriceColor["qtty"])),
+            range = c(min(
+              0, min(d %>% pull(emissions)) - max(d %>% pull(emissions)) * 0.05
+            ), max(d %>% pull(emissions)) * 1.05),
+            gridcolor = "#e8e8e8",
+            ticks = 'outside',
+            showline = TRUE,
+            linecolor = "#adadad",
+            linewidth = 2#, tickcolor = "#e8e8e8", tickwidth = 3
+          ),
+          yaxis2 = list(
+            zeroline = TRUE,
+            zerolinecolor = "#e8e8e8",
+            zerolinewidth = 3,
+            showgrid = FALSE,
+            title = list(text = "Price (US$2005/t CO2)", font = list(color =
+                                                                       qttyPriceColor["price"])),
+            overlaying = "y",
+            side = "right",
+            range = c(
+              min(
+                0,
+                min(d %>% pull(emissions)) * secAxisScale - max(d %>% pull(emissions)) *
+                  secAxisScale * 0.05
+              ),
+              max(d %>% pull(emissions)) * secAxisScale * 1.05
+            ),
+            ticks = 'outside',
+            showline = TRUE,
+            linecolor = "#adadad",
+            linewidth = 2#, tickcolor = "#e8e8e8", tickwidth = 3
+          )
+        )
+    })
+  })
+
+
+```
+
+
+ <!-- deviation -->
+```{r deviation chart, echo=FALSE, include=FALSE}
+
+# deviation chart
+plotData <- pm_emiMktTarget_dev_iter %>%
+  mutate(
+    converged = ifelse((.data$pm_emiMktTarget_dev_iter <=  emiMktTarget_tolerance[ext_regi]) &
+                         (.data$pm_emiMktTarget_dev_iter >= -emiMktTarget_tolerance[ext_regi]),
+                       "yes",
+                       "no"
+    ),
+    tooltip = paste0(
+      "Iteration: ",
+      .data$iteration,
+      "<br>",
+      ifelse((.data$pm_emiMktTarget_dev_iter <=  emiMktTarget_tolerance[ext_regi]) &
+               (.data$pm_emiMktTarget_dev_iter >= -emiMktTarget_tolerance[ext_regi]),
+             paste0(
+               "Converged<br>",
+               "Deviation: ",
+               round(100 * .data$pm_emiMktTarget_dev_iter, 2),
+               "%"
+             ),
+             paste0(
+               "Not converged<br>",
+               "Deviation: ",
+               round(100 * .data$pm_emiMktTarget_dev_iter, 2),
+               "%",
+               ifelse(pm_emiMktTarget_dev_iter >= 0, " > ", " < -"),
+               round(100 * emiMktTarget_tolerance[ext_regi], 2),
+               "%"
+             )
+      )
+    )
+  )
+
+g[["deviation"]] <-
+  lapply(setNames(tgtRegions, tgtRegions), function(reg) {
+    subGroup <-
+      setNames(
+        tgts %>% filter(ext_regi == reg) %>% pull(ttot2),
+        tgts %>% filter(ext_regi == reg) %>% pull(group)
+      )
+    lapply(subGroup, function(tgtPeriod) {
+      d <- plotData %>% filter(ext_regi == reg, ttot2 == tgtPeriod)
+      p <-
+        ggplot(d,
+               aes_string(x = "iteration", y = "pm_emiMktTarget_dev_iter")) +
+        suppressWarnings(geom_rect(
+          aes(
+            xmin = .data$iteration - 0.5,
+            xmax = .data$iteration + 0.5,
+            ymin = emiMktTarget_tolerance[ext_regi] * -1,
+            ymax = emiMktTarget_tolerance[ext_regi],
+            fill = converged,
+            text = tooltip
+          ),
+          alpha = 0.2
+        )) +
+        suppressWarnings(geom_line(aes_string(group = 1, text = "tooltip"))) +
+        scale_y_continuous(
+          breaks = c(
+            -5 * emiMktTarget_tolerance[ext_regi],
+            -emiMktTarget_tolerance[ext_regi],
+            0,
+            emiMktTarget_tolerance[ext_regi],
+            5 * emiMktTarget_tolerance[ext_regi]
+          ),
+          labels = scales::percent_format(accuracy = .1)
+        ) +
+        scale_fill_manual(values = booleanColor) +
+        theme_bw() +
+        theme(
+          strip.background = element_blank(),
+          axis.title.x = element_blank(),
+          legend.position = "none"
+        ) +
+        coord_cartesian(ylim = c(-5 * emiMktTarget_tolerance[reg],+5 * emiMktTarget_tolerance[reg])) +
+        ylab("Deviation (%)") +
+        scale_x_continuous(expand = c(0, 0),
+                           breaks = 1:max(d$iteration)) +
+        theme(plot.margin = margin(0, 42, 0, 22, "pt")) # t,r,b,l
+      
+      plotly::ggplotly(p, tooltip = c("text"), height = 200) #, autosize = FALSE
+    })
+  })
+
+
+```
+
+
+
+## {.tabset}
+
+```{r, include=FALSE}
+
+# Creating sections
+out <- ""
+for(reg in tgtRegions){
+  out <- paste0(out,knitr::knit_expand(text=paste0("### ", reg, " {.tabset}\n\n")))
+  for(subGroup in tgts %>% filter(ext_regi == reg) %>% pull(group)){
+    
+    tgtPeriod <- strsplit(subGroup,"_",fixed=T)[[1]][1]
+    unit <- pm_emiMktTarget %>% filter(ext_regi == reg, ttot2 == tgtPeriod) %>% pull(emi_type_47)
+    
+    out <- paste0(out,knitr::knit_expand(text=paste0("#### ", subGroup, "\n\n")))
+    
+    out <- paste0(out,knitr::knit_expand(text=paste0("##### Emissions and Carbon Price (", unit, ")\n\n")))
+    out <- paste0(out,"```{r , results = 'asis', fig.height=10}\n\n")
+    out <- paste0(out,"g$qtty_and_price[['", reg, "']][['", subGroup, "']]\n\n")
+    out <- paste0(out,"```\n\n")
+    
+#    out <- paste0(out,knitr::knit_expand(text=paste0("##### Deviation per iteration\n\n")))
+    out <- paste0(out,"```{r , results = 'asis', fig.height=10}\n\n")
+    out <- paste0(out,"g$deviation[['", reg, "']][['", subGroup, "']]\n\n")
+    out <- paste0(out,"```\n\n")
+  }
+}
+
+
+```
+
+`r paste(knitr::knit(text = paste(out, collapse = '\n')))`
+
+

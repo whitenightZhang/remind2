@@ -106,7 +106,7 @@ plotLCOE <- function(LCOEfile, gdx, y = c(2015, 2020, 2030, 2040, 2050, 2060),
 
   plot.outputs <- c("seel", "seliq", "segas", "seh2")
   plot.techs <- c(
-    "pc", "igcc", "ngt", "ngcc", "ngccc", "tnrs", "hydro", "spv", "wind", "windoff", "csp",
+    "pc", "igcc", "ngt", "ngcc", "ngccc", "tnrs", "hydro", "spv", "windon", "windoff", "csp",
     "biochp", "bioigccc",
     "refliq", "biodiesel", "bioftrec", "bioftcrec", "MeOH",
     "gastr", "biogas", "h22ch4",

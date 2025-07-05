@@ -825,6 +825,11 @@ showAreaAndBarPlots(data, items, tot, orderVars = "user", scales = "fixed")
 showLinePlots(data, "FE|Transport")
 ```
 
+#### FE Transport w/o Bunkers - Line 
+```{r Transport w/o Bunkers}
+showLinePlots(data, "FE|Transport|w/o Bunkers")
+```
+
 #### Road
 ```{r Road}
 showLinePlots(data, "FE|Transport|Road")
@@ -877,7 +882,7 @@ showLinePlots(data, "FE|Transport|Freight|Domestic Shipping")
 
 #### Freight International Shipping
 ```{r Freight International Shipping}
-showLinePlots(data, "FE|Transport|Freight|International Shipping")
+showLinePlots(data, "FE|Transport|Bunkers|Freight|International Shipping")
 ```
 
 ```{r Transport Final Energy}

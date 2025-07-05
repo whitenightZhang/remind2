@@ -7,7 +7,7 @@
 test_ranges(
   data,
   tests,
-  reaction = c("warning", "stop"),
+  reaction = c("message", "stop"),
   report.missing = FALSE
 )
 }
@@ -24,7 +24,7 @@ omitted.
 - An optional entry \code{ignore.case} which can be set to \code{FALSE} if the
 regular expression should be matched case-sensitive.}
 
-\item{reaction}{A character string, either \code{'warning'} or \code{'stop'}, to either
+\item{reaction}{A character string, either \code{'message'} or \code{'stop'}, to either
 warn or throw an error if variables exceed the ranges.}
 
 \item{report.missing}{If set to \code{TRUE}, will message about regular

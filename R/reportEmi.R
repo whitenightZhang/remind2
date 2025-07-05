@@ -109,6 +109,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
   vm_emiTeMkt <- readGDX(gdx, c("vm_emiTeMkt", "v_emiTeMkt"), field = "l", restore_zeros = FALSE, format = "first_found")[, t, ]
   # emissions from MAC curves (non-energy emissions)
   vm_emiMacSector <- readGDX(gdx, "vm_emiMacSector", field = "l", restore_zeros = FALSE)[, t, ]
+  p_co2lucSub <- readGDX(gdx, "p_co2lucSub", restore_zeros = TRUE, react = "silent")[, t, ]
   # F-Gases
   vm_emiFgas <- readGDX(gdx, "vm_emiFgas", field = "l", restore_zeros = FALSE)[, t, ]
   # Emissions from MACs (currently: all emissions outside of energy CO2 emissions)
@@ -393,6 +394,11 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
 
 
 
+  # compute share of stored carbon from total captured carbon
+  p_share_CCS <- dimSums(vm_co2CCS, dim = 3, na.rm = TRUE) / dimSums(vm_co2capture, dim = 3)
+  p_share_CCS[is.infinite(p_share_CCS)] <- 0
+  p_share_CCS[is.na(p_share_CCS)] <- 0
+
   ## Waste Incineration Emissions ----
 
   # This distributes energy-related waste incineration emissions ex-post to sectors. The emissions are
@@ -496,7 +502,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
 
     if (exists("vm_incinerationCCS")) {
       # calculate captured waste carbon used for CCU (not stored but released)
-      WasteCCU <- dimSums(vm_incinerationCCS, dim = c(3.2, 3.3)) * (1 - dimSums(vm_co2CCS, dim = 3) / dimSums(vm_co2capture, dim = 3))
+      WasteCCU <- dimSums(vm_incinerationCCS, dim = c(3.2, 3.3)) * (1 - p_share_CCS)
       WasteCCU[is.na(WasteCCU)] <- 0
     } else {
       # set to zero for GDXs where no waste carbon capture implemented
@@ -628,11 +634,6 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
   # pe2se,extraction,CCU -> supply-side
   # se2fe,industryCCS -> demand-side
 
-
-  # compute share of stored carbon from total captured carbon
-  p_share_CCS <- dimSums(vm_co2CCS, dim = 3, na.rm = TRUE) / dimSums(vm_co2capture, dim = 3)
-  p_share_CCS[is.infinite(p_share_CCS)] <- 0
-  p_share_CCS[is.na(p_share_CCS)] <- 0
 
   sel_pm_emifac_pe2se <- if (getSets(pm_emifac)[[6]] == "emiAll") {
     mselect(pm_emifac, all_te = pe2se$all_te, emiAll = "co2")
@@ -1134,6 +1135,26 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     out
   )
 
+  # Check if industry subsector fossil emissions negative
+  # This can be because of small deviations in industry equations
+  # as different REMIND variables are used to calculate these emissions
+  # The equations are considered feasible by the solver due to tolerance margins.
+  # It can lead to small inconsistencies between vm_demFENonEnergySector, o37_demFeIndSub
+  # and pm_IndstCO2Captured.
+
+  # fossil industry emissions to be checked
+  emi.fosneg.check <- c(grep("Emi\\|CO2\\|Energy\\|Demand\\|Industry\\|.*Fossil", getNames(out), value=T),
+                        grep("Emi\\|CO2\\|pre-CCS\\|Energy\\|Demand\\|Industry\\|.*Fossil", getNames(out), value=T))
+
+  # if negative and within the solver tolerance of 1e-7 GtC/yr ~ 1e-2 MtCO2/yr, set to 0
+  out[,,emi.fosneg.check][out[,, emi.fosneg.check] < 0 & out[,, emi.fosneg.check] >= -1e-2] <- 0
+  # if even more negative -> throw warning
+  if (any(out[,,emi.fosneg.check] < -1e-2 )) {
+    warning("Some industry subsector fossil emissions are negative, please check calculation in reportEmi!")
+  }
+
+
+
   ##### 2.1.3.2 International Bunkers ----
   bunkersEmi <- dimSums(mselect(EmiFeCarrier, emi_sectors = "trans", all_emiMkt = "other"), dim = 3) * GtC_2_MtCO2
   out <- mbind(out,
@@ -1233,10 +1254,32 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
   ### 2.3 Land-use Change Emissions ----
 
   out <- mbind(out,
-               # land-use change CO2
-               setNames(dimSums(vm_emiMacSector[, , "co2luc"], dim = 3) * GtC_2_MtCO2,
-                        "Emi|CO2|+|Land-Use Change (Mt CO2/yr)"))
+    # land-use change CO2
+    setNames(dimSums(vm_emiMacSector[, , "co2luc"]                 , dim = 3) * GtC_2_MtCO2, "Emi|CO2|+|Land-Use Change (Mt CO2/yr)")
+    )
 
+  # add subcategories of co2luc only if they already exist in the gdx
+  if(!is.null(p_co2lucSub)) {
+    out <- mbind(out,
+      setNames(dimSums(p_co2lucSub[, , "co2lucNegIntentAR"]          , dim = 3) * GtC_2_MtCO2, "Emi|CO2|Land-Use Change|Negative|Intentional|+|Reforestation (Mt CO2/yr)"),
+      setNames(dimSums(p_co2lucSub[, , "co2lucNegIntentAgroforestry"], dim = 3) * GtC_2_MtCO2, "Emi|CO2|Land-Use Change|Negative|Intentional|+|Agroforestry (Mt CO2/yr)"),
+      setNames(dimSums(p_co2lucSub[, , "co2lucNegIntentTimber"]      , dim = 3) * GtC_2_MtCO2, "Emi|CO2|Land-Use Change|Negative|Intentional|+|Timber (Mt CO2/yr)"),
+      setNames(dimSums(p_co2lucSub[, , "co2lucNegIntentSCM"]         , dim = 3) * GtC_2_MtCO2, "Emi|CO2|Land-Use Change|Negative|Intentional|+|Soil Carbon Management (Mt CO2/yr)"),
+      setNames(dimSums(p_co2lucSub[, , "co2lucNegIntentPeat"]        , dim = 3) * GtC_2_MtCO2, "Emi|CO2|Land-Use Change|Negative|Intentional|+|Peatland (Mt CO2/yr)"),
+      setNames(dimSums(p_co2lucSub[, , "co2lucNegUnintent"]          , dim = 3) * GtC_2_MtCO2, "Emi|CO2|Land-Use Change|Negative|+|Unintentional (Mt CO2/yr)"),
+      setNames(dimSums(p_co2lucSub[, , "co2lucPos"]                  , dim = 3) * GtC_2_MtCO2, "Emi|CO2|Land-Use Change|+|Positive (Mt CO2/yr)"))
+
+    # aggregates of co2luc subcategories
+    intentional <- c("co2lucNegIntentAR", "co2lucNegIntentAgroforestry", "co2lucNegIntentTimber", "co2lucNegIntentSCM", "co2lucNegIntentPeat")
+    out <- mbind(out,
+      setNames(dimSums(p_co2lucSub[, , intentional]                  , dim = 3) * GtC_2_MtCO2, "Emi|CO2|Land-Use Change|Negative|+|Intentional (Mt CO2/yr)"))
+
+    out <- mbind(out,
+      setNames(out[,,"Emi|CO2|Land-Use Change|Negative|+|Intentional (Mt CO2/yr)"] +
+               out[,,"Emi|CO2|Land-Use Change|Negative|+|Unintentional (Mt CO2/yr)"],          "Emi|CO2|Land-Use Change|+|Negative (Mt CO2/yr)"),
+      setNames(out[,,"Emi|CO2|Land-Use Change|+|Positive (Mt CO2/yr)"] +
+               out[,,"Emi|CO2|Land-Use Change|Negative|+|Unintentional (Mt CO2/yr)"],          "Emi|CO2|Gross|Land-Use Change (Mt CO2/yr)"))
+  }
 
   ### 2.4 Waste CO2 emissions (IPCC category 5) ----
 

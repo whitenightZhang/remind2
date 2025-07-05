@@ -12,7 +12,7 @@
 #' @param t temporal resolution of the reporting, default:
 #' t=c(seq(2005,2060,5),seq(2070,2110,10),2130,2150)
 #'
-#' @author Lavinia Baumstark
+#' @author Lavinia Baumstark, Fabrice Lécuyer
 #' @examples
 #' \dontrun{
 #' reportPE(gdx)
@@ -24,182 +24,175 @@
 
 reportPE <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 5), seq(2070, 2110, 10), 2130, 2150)) {
   ####### conversion factors ##########
-  TWa_2_EJ     <- 31.536
+  TWa_2_EJ <- 3600 * 24 * 365 / 1e6
   ####### read in needed data #########
   ## sets
-  pe2se    <- readGDX(gdx, "pe2se")
-  te       <- readGDX(gdx, "te")
-  tefosccs <- readGDX(gdx, c("teFosCCS", "tefosccs"), format = "first_found")
-  teccs    <- readGDX(gdx, c("teCCS", "teccs"), format = "first_found")
-  tenoccs  <- readGDX(gdx, c("teNoCCS", "tenoccs"), format = "first_found")
-  pebio    <- readGDX(gdx, c("peBio", "pebio"), format = "first_found")
-  sety     <- readGDX(gdx, c("entySe", "sety"), format = "first_found")
-  oc2te    <- readGDX(gdx, c("pc2te", "oc2te"), format = "first_found")
+  teCCS    <- readGDX(gdx, "teCCS", format = "first_found") # technologies with carbon capture
+  teNoCCS  <- readGDX(gdx, "teNoCCS", format = "first_found") # technologies without CCS
+  entySe   <- readGDX(gdx, "entySe", format = "first_found") # secondary energy types
+  peFos    <- readGDX(gdx, "peFos", format = "first_found") # primary energy fossil fuels
+  peBio    <- readGDX(gdx, "peBio", format = "first_found") # biomass primary energy types
+  pe2se    <- readGDX(gdx, "pe2se") # map primary energy carriers to secondary
+  pc2te    <- readGDX(gdx, "pc2te", format = "first_found") # prod couple: mapping for own consumption of technologies
+  pc2te    <- pc2te[(pc2te$all_enty1 %in% entySe) & (pc2te$all_enty2 %in% entySe), ] # ensure main and couple product are valid entySe
 
-  # the set liquids changed from sepet+sedie to seLiq in REMIND 1.7. Seliq, sega and seso changed to include biomass or Fossil origin after REMIND 2.0
-  se_Liq    <- intersect(c("seliqfos", "seliqbio", "seliq", "sepet", "sedie"), sety)
-  se_Gas    <- intersect(c("segafos", "segabio", "sega"), sety)
-  se_Solids <- intersect(c("sesofos", "sesobio", "seso"), sety)
+  seLiq    <- intersect(c("seliqfos", "seliqbio"), entySe)
+  seGas    <- intersect(c("segafos", "segabio"), entySe)
+  seSol    <- intersect(c("sesofos", "sesobio"), entySe)
 
-  enty2rlf <- readGDX(gdx, c("pe2rlf", "enty2rlf"), format = "first_found")
   ## parameter
-  dataoc_tmp       <- readGDX(gdx, c("pm_prodCouple", "p_prodCouple", "p_dataoc"), restore_zeros = FALSE, format = "first_found")
-  dataoc_tmp[is.na(dataoc_tmp)] <- 0
-  p_costsPEtradeMp <- readGDX(gdx, c("pm_costsPEtradeMp", "p_costsPEtradeMp"), restore_zeros = FALSE)
-  p_macBase        <- readGDX(gdx, c("pm_macBaseMagpie", "p_macBaseMagpie", "p_macBase"), format = "first_found") * TWa_2_EJ
-#  p_macEmi         <- readGDX(gdx,c("p_macEmi"),format="first_found")*TWa_2_EJ
+  pm_costsPEtradeMp <- readGDX(gdx, "pm_costsPEtradeMp", restore_zeros = FALSE)
+  
   ## variables
-  demPE  <- readGDX(gdx, name = c("vm_demPe", "v_pedem"), field = "l", restore_zeros = FALSE, format = "first_found") * TWa_2_EJ
+  demPE  <- readGDX(gdx, name = "vm_demPe", field = "l", restore_zeros = FALSE, format = "first_found") * TWa_2_EJ
   demPE  <- demPE[pe2se]
-  prodSE <- readGDX(gdx, name = c("vm_prodSe", "v_seprod"), field = "l", restore_zeros = FALSE, format = "first_found") * TWa_2_EJ
-  prodSE <- mselect(prodSE, all_enty1 = sety)
-  fuelex <- readGDX(gdx, c("vm_fuExtr", "vm_fuelex"), field = "l", format = "first_found") * TWa_2_EJ
-  Mport  <- readGDX(gdx, c("vm_Mport"), field = "l", format = "first_found") * TWa_2_EJ
-  Xport  <- readGDX(gdx, c("vm_Xport"), field = "l", format = "first_found") * TWa_2_EJ
+  prodSE <- readGDX(gdx, name = "vm_prodSe", field = "l", restore_zeros = FALSE, format = "first_found") * TWa_2_EJ
+  prodSE <- mselect(prodSE, all_enty1 = entySe)
+  fuExtr <- readGDX(gdx, "vm_fuExtr", field = "l", format = "first_found") * TWa_2_EJ
+  Mport  <- readGDX(gdx, "vm_Mport", field = "l", format = "first_found") * TWa_2_EJ
+  Xport  <- readGDX(gdx, "vm_Xport", field = "l", format = "first_found") * TWa_2_EJ
+
   ####### calculate minimal temporal resolution #####
   y <- Reduce(intersect, list(getYears(demPE), getYears(prodSE)))
   demPE  <- demPE[, y, ]
   prodSE <- prodSE[, y, ]
-  fuelex <- fuelex[, y, ]
+  fuExtr <- fuExtr[, y, ]
   Mport  <- Mport[, y, ]
   Xport  <- Xport[, y, ]
-  p_macBase <- p_macBase[, y, ]
-#  p_macEmi  <- p_macEmi[,y,]
-  ####### fix negative values to 0 ##################
-  #### adjust regional dimension of dataoc
-  dataoc <- new.magpie(getRegions(prodSE), getYears(dataoc_tmp), magclass::getNames(dataoc_tmp), fill = 0)
-  dataoc[getRegions(dataoc_tmp), , ] <- dataoc_tmp
-  getSets(dataoc) <- getSets(dataoc_tmp)
-  dataoc[dataoc < 0] <- 0
-  ####### internal function for reporting ###########
-  pe_carrier <- function(demPE, dataoc, oc2te, sety, pecarrier, secarrier, te = pe2se$all_te, name = NULL) {
-    ## identify all techs with secarrier as a main product
-    sub1_oc2te <- oc2te[(oc2te$all_enty %in% pecarrier) & (oc2te$all_enty1 %in% secarrier) & (oc2te$all_enty2 %in% sety)    & (oc2te$all_te %in% te), ]
-    ## identify all techs with secarrier as a couple product
-    sub2_oc2te <- oc2te[(oc2te$all_enty %in% pecarrier) & (oc2te$all_enty1 %in% sety)    & (oc2te$all_enty2 %in% secarrier) & (oc2te$all_te %in% te), ]
-    ## all primary energy demand with secarrier as a main product
-    x1 <- dimSums(mselect(demPE, all_enty = pecarrier, all_enty1 = secarrier, all_te = te), dim = 3)
-    ## negative term for couple products by technologies with secarrier as a main product
-    x2 <- dimSums(demPE[sub1_oc2te] * dataoc[sub1_oc2te] / (1 + dataoc[sub1_oc2te]), dim = 3)
-    ## additional pe demand for technologies with secarrier as a couple product
-    x3 <- dimSums(demPE[sub2_oc2te] * dataoc[sub2_oc2te] / (1 + dataoc[sub2_oc2te]), dim = 3)
-    out <- (x1 - x2 + x3)
-    if (!is.null(name)) magclass::getNames(out) <- name
-    return(out)
+
+  #### adjust regional dimension of prodCouple (own consumption of technologies)
+  prodCouple_tmp <- readGDX(gdx, "pm_prodCouple", restore_zeros = FALSE, format = "first_found")
+  prodCouple_tmp[is.na(prodCouple_tmp)] <- 0
+  prodCouple <- new.magpie(getRegions(prodSE), getYears(prodCouple_tmp), magclass::getNames(prodCouple_tmp), fill = 0)
+  prodCouple[getRegions(prodCouple_tmp), , ] <- prodCouple_tmp
+  getSets(prodCouple) <- getSets(prodCouple_tmp)
+  prodCouple[prodCouple < 0] <- 0 # fix negative values to 0
+  
+  ####### internal functions for reporting ###########
+  get_demPE <- function(PEcarrier, SEcarrier = entySe, te = pe2se$all_te, name = NULL) {
+    # Compute the PE of technologies that have SEcarrier as their main product
+    PE <- dimSums(mselect(demPE, all_enty = PEcarrier, all_enty1 = SEcarrier, all_te = te), dim = 3)
+
+    # Some technologies output a couple of SE carriers: the main product (all_enty1), and the couple product (all_enty2)
+    # Add the couple PE of technologies that have SEcarrier as their couple product (and another carrier as main product)
+    pc2te_couple <- pc2te[(pc2te$all_enty %in% PEcarrier) & (pc2te$all_enty2 %in% SEcarrier) & (pc2te$all_te %in% te), ]
+    PE <- PE + dimSums(demPE[pc2te_couple] * prodCouple[pc2te_couple] / (1 + prodCouple[pc2te_couple]), dim = 3)
+    # Subtract the couple PE of technologies that have SEcarrier as their main product, but also have a couple product
+    pc2te_main <- pc2te[(pc2te$all_enty %in% PEcarrier) & (pc2te$all_enty1 %in% SEcarrier) & (pc2te$all_te %in% te), ]
+    PE <- PE - dimSums(demPE[pc2te_main] * prodCouple[pc2te_main] / (1 + prodCouple[pc2te_main]), dim = 3)
+
+    if (!is.null(name)) magclass::getNames(PE) <- name
+    return(PE)
   }
+
+  get_prodSE <- function(PEcarrier, SEcarrier = entySe, te = pe2se$all_te, name) {
+    setNames(dimSums(mselect(prodSE, all_enty = PEcarrier, all_enty1 = SEcarrier, all_te = te), dim = 3), name)
+  }
+
   ####### calculate reporting parameters ############
-  tmp1 <- NULL
-  tmp1 <- mbind(
-          setNames(dimSums(demPE[, , c("peoil", "pecoal", "pegas")], dim = 3),          "PE|Fossil (EJ/yr)"),
-          setNames(dimSums(demPE[, , tefosccs], dim = 3),                             "PE|Fossil|w/ CC (EJ/yr)"),
-          setNames(dimSums(demPE[, , c("peoil", "pecoal", "pegas")], dim = 3)
-                 - dimSums(demPE[, , tefosccs], dim = 3),                             "PE|Fossil|w/o CC (EJ/yr)"),
-          setNames(dimSums(demPE[, , "pecoal"], dim = 3),                             "PE|+|Coal (EJ/yr)"),
-          setNames(dimSums(mselect(demPE, all_enty = "pecoal", all_te = teccs), dim = 3), "PE|Coal|w/ CC (EJ/yr)"),
-          setNames(dimSums(demPE[, , "pecoal"], dim = 3)
-                 - dimSums(mselect(demPE, all_enty = "pecoal", all_te = teccs), dim = 3), "PE|Coal|w/o CC (EJ/yr)"),
-          setNames(dimSums(demPE[, , "peoil"], dim = 3),                              "PE|+|Oil (EJ/yr)"),
-          setNames(dimSums(mselect(demPE, all_enty = "peoil", all_te = tenoccs), dim = 3), "PE|Oil|w/o CC (EJ/yr)"),
-          setNames(dimSums(demPE[, , "pegas"], dim = 3),                              "PE|+|Gas (EJ/yr)"),
-          setNames(dimSums(mselect(demPE, all_enty = "pegas", all_te = teccs), dim = 3),  "PE|Gas|w/ CC (EJ/yr)"),
-          setNames(dimSums(demPE[, , "pegas"], dim = 3)
-                 - dimSums(mselect(demPE, all_enty = "pegas", all_te = teccs), dim = 3),  "PE|Gas|w/o CC (EJ/yr)"),
-          setNames(dimSums(demPE[, , pebio], dim = 3),                                "PE|+|Biomass (EJ/yr)"),
-          setNames(dimSums(mselect(demPE, all_enty = pebio, all_te = teccs), dim = 3),    "PE|Biomass|w/ CC (EJ/yr)"),
-          setNames(dimSums(demPE[, , pebio], dim = 3)
-                 - dimSums(mselect(demPE, all_enty = pebio, all_te = teccs), dim = 3),    "PE|Biomass|w/o CC (EJ/yr)"),
-          setNames(dimSums(mselect(demPE, all_enty = pebio, all_te = "biotr"), dim = 3),  "PE|Biomass|Traditional (EJ/yr)"),
-          setNames(dimSums(demPE[, , c("pebios", "pebioil")], dim = 3),                "PE|Biomass|1st Generation (EJ/yr)"),
-          setNames(dimSums(demPE[, , pebio], dim = 3)
-                 - dimSums(mselect(demPE, all_enty = pebio, all_te = "biotr"), dim = 3),  "PE|Biomass|Modern (EJ/yr)")
-          )
-  # Nuclear and Renewables
-  tmp2 <- NULL
-  tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "peur"), dim = 3),     "PE|+|Nuclear (EJ/yr)"))
-  tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = c("pegeo", "pehyd", "pewin", "pesol")), dim = 3), "PE|Non-Biomass Renewables (EJ/yr)"))
-  tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "pehyd"), dim = 3),    "PE|+|Hydro (EJ/yr)"))
-  tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "pewin"), dim = 3),    "PE|+|Wind (EJ/yr)"))
-  if ("windon" %in% te) {
-    tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "pewin", all_te = "windon"), dim = 3),  "PE|Wind|+|Onshore (EJ/yr)"))
-    tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "pewin", all_te = "windoff"), dim = 3), "PE|Wind|+|Offshore (EJ/yr)"))
-  } else {
-    tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "pewin", all_te = "wind"), dim = 3),    "PE|Wind|+|Onshore (EJ/yr)"))
-    tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "pewin", all_te = "windoff"), dim = 3), "PE|Wind|+|Offshore (EJ/yr)"))
-  }
-  tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "pesol"), dim = 3),    "PE|+|Solar (EJ/yr)"))
-  tmp2 <- mbind(tmp2, setNames(dimSums(mselect(prodSE, all_enty = "pegeo"), dim = 3),    "PE|+|Geothermal (EJ/yr)"))
+  out <- mbind(
+    # fossil fuels
+    get_demPE(peFos,                                                 name = "PE|Fossil (EJ/yr)"),
+    get_demPE(peFos, te = teCCS,                                     name = "PE|Fossil|+|w/ CC (EJ/yr)"),
+    get_demPE(peFos, te = teNoCCS,                                   name = "PE|Fossil|+|w/o CC (EJ/yr)"),
 
-  # primary energy consumption per carrier  --- use function declared above
-  tmp3 <- mbind(pe_carrier(demPE, dataoc, oc2te, sety, pebio, "seel",                     name = "PE|Biomass|Electricity (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, "seel", teccs,               name = "PE|Biomass|Electricity|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, "seel", tenoccs,             name = "PE|Biomass|Electricity|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Gas,                     name = "PE|Biomass|Gases (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Gas, teccs,               name = "PE|Biomass|Gases|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Gas, tenoccs,             name = "PE|Biomass|Gases|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, "seh2",                     name = "PE|Biomass|Hydrogen (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, "seh2", teccs,               name = "PE|Biomass|Hydrogen|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, "seh2", tenoccs,             name = "PE|Biomass|Hydrogen|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Liq,                    name = "PE|Biomass|Liquids (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Liq, teccs,               name = "PE|Biomass|Liquids|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Liq, tenoccs,             name = "PE|Biomass|Liquids|w/o CC (EJ/yr)"),
+    get_demPE("pecoal",                                              name = "PE|+|Coal (EJ/yr)"),
+    get_demPE("pecoal", te = teCCS,                                  name = "PE|Coal|++|w/ CC (EJ/yr)"),
+    get_demPE("pecoal", te = teNoCCS,                                name = "PE|Coal|++|w/o CC (EJ/yr)"),
+    get_demPE("pecoal", "seel",                                      name = "PE|Coal|+|Electricity (EJ/yr)"),
+    get_demPE("pecoal", "seel", teCCS,                               name = "PE|Coal|Electricity|+|w/ CC (EJ/yr)"),
+    get_demPE("pecoal", "seel", teNoCCS,                             name = "PE|Coal|Electricity|+|w/o CC (EJ/yr)"),
+    get_demPE("pecoal", seGas,                                       name = "PE|Coal|+|Gases (EJ/yr)"),
+    get_demPE("pecoal", seGas, teCCS,                                name = "PE|Coal|Gases|+|w/ CC (EJ/yr)"),
+    get_demPE("pecoal", seGas, teNoCCS,                              name = "PE|Coal|Gases|+|w/o CC (EJ/yr)"),
+    get_demPE("pecoal", seLiq,                                       name = "PE|Coal|+|Liquids (EJ/yr)"),
+    get_demPE("pecoal", seLiq, teCCS,                                name = "PE|Coal|Liquids|+|w/ CC (EJ/yr)"),
+    get_demPE("pecoal", seLiq, teNoCCS,                              name = "PE|Coal|Liquids|+|w/o CC (EJ/yr)"),
+    get_demPE("pecoal", "seh2",                                      name = "PE|Coal|+|Hydrogen (EJ/yr)"),
+    get_demPE("pecoal", "seh2", teCCS,                               name = "PE|Coal|Hydrogen|+|w/ CC (EJ/yr)"),
+    get_demPE("pecoal", "seh2", teNoCCS,                             name = "PE|Coal|Hydrogen|+|w/o CC (EJ/yr)"),
+    get_demPE("pecoal", "sehe",                                      name = "PE|Coal|+|Heat (EJ/yr)"),
+    get_demPE("pecoal", seSol,                                       name = "PE|Coal|+|Solids (EJ/yr)"),
 
-                pe_carrier(demPE, dataoc, oc2te, sety, "pebiolc", se_Liq,                name = "PE|Biomass|Liquids|Cellulosic (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pebiolc", se_Liq, teccs,          name = "PE|Biomass|Liquids|Cellulosic|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pebiolc", se_Liq, tenoccs,        name = "PE|Biomass|Liquids|Cellulosic|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, c("pebioil", "pebios"), se_Liq,  name = "PE|Biomass|Liquids|Non-Cellulosic (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pebios", se_Liq,                 name = "PE|Biomass|Liquids|Conventional Ethanol (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Liq, c("bioftrec", "bioftcrec", "biodiesel"),
-                                                                                     name = "PE|Biomass|Liquids|Biodiesel (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Liq, c("bioftcrec"),
-                                                                                     name = "PE|Biomass|Liquids|Biodiesel|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, se_Liq, c("bioftrec", "biodiesel"),
-                                                                                     name = "PE|Biomass|Liquids|Biodiesel|w/o CC (EJ/yr)"),
+    get_demPE("peoil",                                               name = "PE|+|Oil (EJ/yr)"),
+    get_demPE("peoil", te = teCCS,                                   name = "PE|Oil|++|w/ CC (EJ/yr)"),
+    get_demPE("peoil", te = teNoCCS,                                 name = "PE|Oil|++|w/o CC (EJ/yr)"),
+    get_demPE("peoil", "seel",                                       name = "PE|Oil|+|Electricity (EJ/yr)"),
+    get_demPE("peoil", seLiq,                                        name = "PE|Oil|+|Liquids (EJ/yr)"),
+    
+    get_demPE("pegas",                                               name = "PE|+|Gas (EJ/yr)"),
+    get_demPE("pegas", te = teCCS,                                   name = "PE|Gas|++|w/ CC (EJ/yr)"),
+    get_demPE("pegas", te = teNoCCS,                                 name = "PE|Gas|++|w/o CC (EJ/yr)"),
+    get_demPE("pegas", "seel",                                       name = "PE|Gas|+|Electricity (EJ/yr)"),
+    get_demPE("pegas", "seel", teCCS,                                name = "PE|Gas|Electricity|+|w/ CC (EJ/yr)"),
+    get_demPE("pegas", "seel", teNoCCS,                              name = "PE|Gas|Electricity|+|w/o CC (EJ/yr)"),
+    get_demPE("pegas", seGas,                                        name = "PE|Gas|+|Gases (EJ/yr)"),
+    get_demPE("pegas", seLiq,                                        name = "PE|Gas|+|Liquids (EJ/yr)"),
+    get_demPE("pegas", seLiq, teCCS,                                 name = "PE|Gas|Liquids|+|w/ CC (EJ/yr)"),
+    get_demPE("pegas", seLiq, teNoCCS,                               name = "PE|Gas|Liquids|+|w/o CC (EJ/yr)"),
+    get_demPE("pegas", "sehe",                                       name = "PE|Gas|+|Heat (EJ/yr)"),
+    get_demPE("pegas", "seh2",                                       name = "PE|Gas|+|Hydrogen (EJ/yr)"),
+    get_demPE("pegas", "seh2", teCCS,                                name = "PE|Gas|Hydrogen|+|w/ CC (EJ/yr)"),
+    get_demPE("pegas", "seh2", teNoCCS,                              name = "PE|Gas|Hydrogen|+|w/o CC (EJ/yr)"),
 
+    # biomass
+    get_demPE(peBio,                                                 name = "PE|+|Biomass (EJ/yr)"),
+    get_demPE(peBio, te = teCCS,                                     name = "PE|Biomass|++|w/ CC (EJ/yr)"),
+    get_demPE(peBio, te = teNoCCS,                                   name = "PE|Biomass|++|w/o CC (EJ/yr)"),
+    get_demPE(c("pebioil", "pebios"),                                name = "PE|Biomass|1st Generation (EJ/yr)"),
+    get_demPE(peBio, te = "biotr",                                   name = "PE|Biomass|Traditional (EJ/yr)"),
+    get_demPE(peBio, "seel",                                         name = "PE|Biomass|+|Electricity (EJ/yr)"),
+    get_demPE(peBio, "seel", teCCS,                                  name = "PE|Biomass|Electricity|+|w/ CC (EJ/yr)"),
+    get_demPE(peBio, "seel", teNoCCS,                                name = "PE|Biomass|Electricity|+|w/o CC (EJ/yr)"),
+    get_demPE(peBio, seGas,                                          name = "PE|Biomass|+|Gases (EJ/yr)"),
+    get_demPE(peBio, seGas, teCCS,                                   name = "PE|Biomass|Gases|+|w/ CC (EJ/yr)"),
+    get_demPE(peBio, seGas, teNoCCS,                                 name = "PE|Biomass|Gases|+|w/o CC (EJ/yr)"),
+    get_demPE(peBio, "seh2",                                         name = "PE|Biomass|+|Hydrogen (EJ/yr)"),
+    get_demPE(peBio, "seh2", teCCS,                                  name = "PE|Biomass|Hydrogen|+|w/ CC (EJ/yr)"),
+    get_demPE(peBio, "seh2", teNoCCS,                                name = "PE|Biomass|Hydrogen|+|w/o CC (EJ/yr)"),
+    get_demPE(peBio, seLiq,                                          name = "PE|Biomass|+|Liquids (EJ/yr)"),
+    get_demPE(peBio, seLiq, teCCS,                                   name = "PE|Biomass|Liquids|+|w/ CC (EJ/yr)"),
+    get_demPE(peBio, seLiq, teNoCCS,                                 name = "PE|Biomass|Liquids|+|w/o CC (EJ/yr)"),
+    get_demPE("pebiolc", seLiq,                                      name = "PE|Biomass|Liquids|Cellulosic (EJ/yr)"),
+    get_demPE("pebiolc", seLiq, teCCS,                               name = "PE|Biomass|Liquids|Cellulosic|+|w/ CC (EJ/yr)"),
+    get_demPE("pebiolc", seLiq, teNoCCS,                             name = "PE|Biomass|Liquids|Cellulosic|+|w/o CC (EJ/yr)"),
+    get_demPE(c("pebioil", "pebios"), seLiq,                         name = "PE|Biomass|Liquids|Non-Cellulosic (EJ/yr)"),
+    get_demPE("pebios", seLiq,                                       name = "PE|Biomass|Liquids|Conventional Ethanol (EJ/yr)"),
+    get_demPE(peBio, seLiq, c("bioftrec", "bioftcrec", "biodiesel"), name = "PE|Biomass|Liquids|Biodiesel (EJ/yr)"),
+    get_demPE(peBio, seLiq, c("bioftcrec"),                          name = "PE|Biomass|Liquids|Biodiesel|+|w/ CC (EJ/yr)"),
+    get_demPE(peBio, seLiq, c("bioftrec", "biodiesel"),              name = "PE|Biomass|Liquids|Biodiesel|+|w/o CC (EJ/yr)"),
+    get_demPE(peBio, seSol,                                          name = "PE|Biomass|+|Solids (EJ/yr)"),
+    get_demPE(peBio, "sehe",                                         name = "PE|Biomass|+|Heat (EJ/yr)"),
 
+    # renewables and nuclear
+    # using prodSE rather than demPE to follow the "direct method" for primary energy:
+    # https://ourworldindata.org/energy-substitution-method
+    get_prodSE(c("pegeo", "pehyd", "pewin", "pesol"),                name = "PE|Non-Biomass Renewables (EJ/yr)"),
+    get_prodSE("pegeo",                                              name = "PE|+|Geothermal (EJ/yr)"),
+    get_prodSE("pegeo", "sehe",                                      name = "PE|Geothermal|+|Heat (EJ/yr)"),
+    get_prodSE("pegeo", "seel",                                      name = "PE|Geothermal|+|Electricity (EJ/yr)"),
+    get_prodSE("peur",                                               name = "PE|+|Nuclear (EJ/yr)"),
+    get_prodSE("pehyd",                                              name = "PE|+|Hydro (EJ/yr)"),
+    get_prodSE("pewin",                                              name = "PE|+|Wind (EJ/yr)"),
+    get_prodSE("pewin", te = "windon",                               name = "PE|Wind|+|Onshore (EJ/yr)"),
+    get_prodSE("pewin", te = "windoff",                              name = "PE|Wind|+|Offshore (EJ/yr)"),
+    get_prodSE("pesol",                                              name = "PE|+|Solar (EJ/yr)"),
+    get_prodSE("pesol", "sehe",                                      name = "PE|Solar|+|Heat (EJ/yr)"),
+    get_prodSE("pesol", "seel",                                      name = "PE|Solar|+|Electricity (EJ/yr)")
+  )
 
+  # advanced calculation
+  out <- mbind(out,
+    setNames(dimSums(demPE[, , c(peFos, peBio)], dim = 3)
+           + dimSums(prodSE[, , c("pegeo", "pehyd", "pewin", "pesol", "peur")], dim = 3), "PE (EJ/yr)"),
+    setNames(dimSums(demPE[, , peBio], dim = 3)
+           - dimSums(mselect(demPE, all_enty = peBio, all_te = "biotr"), dim = 3),  "PE|Biomass|Modern (EJ/yr)"),
+    setNames(fuExtr[, , "pebiolc.2"], "PE|Biomass|Residues (EJ/yr)"),
+    setNames((fuExtr[, , "pebiolc.1"]
+              + (1 - pm_costsPEtradeMp[, , "pebiolc"]) * Mport[, , "pebiolc"]
+              - Xport[, , "pebiolc"]), "PE|Biomass|Energy Crops (EJ/yr)")
+  )
 
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, c(se_Solids),                  name = "PE|Biomass|Solids (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, pebio, c("sehe"),                  name = "PE|Biomass|Heat (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", "seel",                  name = "PE|Coal|Electricity (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", "seel", teccs,            name = "PE|Coal|Electricity|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", "seel", tenoccs,          name = "PE|Coal|Electricity|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", se_Gas,                  name = "PE|Coal|Gases (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", se_Gas, teccs,            name = "PE|Coal|Gases|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", se_Gas, tenoccs,          name = "PE|Coal|Gases|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", se_Liq,                  name = "PE|Coal|Liquids (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", se_Liq, teccs,            name = "PE|Coal|Liquids|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", se_Liq, tenoccs,          name = "PE|Coal|Liquids|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", "seh2",                  name = "PE|Coal|Hydrogen (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", "seh2", teccs,            name = "PE|Coal|Hydrogen|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", "seh2", tenoccs,          name = "PE|Coal|Hydrogen|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", c("sehe"),               name = "PE|Coal|Heat (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pecoal", c(se_Solids),               name = "PE|Coal|Solids (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", "seel",                   name = "PE|Gas|Electricity (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", "seel", teccs,             name = "PE|Gas|Electricity|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", "seel", tenoccs,           name = "PE|Gas|Electricity|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", c(se_Gas),                name = "PE|Gas|Gases (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", se_Liq,                   name = "PE|Gas|Liquids (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", se_Liq, teccs,             name = "PE|Gas|Liquids|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", se_Liq, tenoccs,           name = "PE|Gas|Liquids|w/o CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", c("sehe"),                name = "PE|Gas|Heat (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", c("seh2"),                name = "PE|Gas|Hydrogen (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", c("seh2"), teccs,          name = "PE|Gas|Hydrogen|w/ CC (EJ/yr)"),
-                pe_carrier(demPE, dataoc, oc2te, sety, "pegas", c("seh2"), tenoccs,        name = "PE|Gas|Hydrogen|w/o CC (EJ/yr)"),
-                setNames(dimSums(mselect(prodSE, all_enty = "pesol", all_enty1 = "seel"), dim = 3), "PE|Solar|Electricity (EJ/yr)"))
-  tmp4 <- NULL
-  tmp4 <- mbind(tmp4, setNames(dimSums(demPE[, , c("peoil", "pecoal", "pegas")], dim = 3)
-                              + dimSums(demPE[, , c("pebiolc", "pebios", "pebioil")], dim = 3)
-                              + dimSums(prodSE[, , c("pegeo", "pehyd", "pewin", "pesol", "peur")], dim = 3), "PE (EJ/yr)"))
-  tmp4 <- mbind(tmp4, setNames(fuelex[, , "pebiolc.2"], "PE|Biomass|Residues (EJ/yr)"))
-# Moved to reportExtraction tmp4 <- mbind(tmp4,setNames(dimSums(fuelex[,,c("pebioil","pebios")][enty2rlf],dim=3),"PE|Production|Biomass|1st Generation (EJ/yr)"))
-  tmp4 <- mbind(tmp4, setNames((fuelex[, , "pebiolc.1"]
-                             + (1 - p_costsPEtradeMp[, , "pebiolc"]) * Mport[, , "pebiolc"] - Xport[, , "pebiolc"]
-                             ), "PE|Biomass|Energy Crops (EJ/yr)"))
-#  tmp4 <- mbind(tmp4,setNames(0.001638 * (p_macBase[,,"ch4gas"] - p_macEmi[,,"ch4gas"]),"PE|Gas|fromCH4MAC|Gas (EJ/yr)"))
-#  tmp4 <- mbind(tmp4,setNames(0.001638 * 0.5 *(p_macBase[,,"ch4coal"] - p_macEmi[,,"ch4coal"]),"PE|Gas|fromCH4MAC|Coalbed (EJ/yr)"))
-#  tmp4 <- mbind(tmp4,setNames(0.001638 * (p_macBase[,,"ch4wstl"] - p_macEmi[,,"ch4wstl"]) ,"PE|Gas|fromCH4MAC|Waste (EJ/yr)"))
-
-  out <- mbind(tmp1, tmp2, tmp3, tmp4)
   # add global values
   out <- mbind(out, dimSums(out, dim = 1))
   # add other region aggregations

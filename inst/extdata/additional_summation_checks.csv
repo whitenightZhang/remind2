@@ -83,10 +83,7 @@ Emi|CO2|CDR;Emi|CO2|CDR|+|Materials;1
 Emi|CO2|CDR;Emi|CO2|CDR|+|OAE;1
 ;;
 # check balance of SE|Electricity electricity generation with the electricity demand variables by sector;;
-SE|Electricity;SE|Input|Electricity|Hydrogen|Synthetic Fuels|+|Liquids;1
-SE|Electricity;SE|Input|Electricity|Hydrogen|Synthetic Fuels|+|Gases;1
-SE|Electricity;SE|Input|Electricity|Hydrogen|direct FE H2;1
-SE|Electricity;SE|Input|Electricity|Hydrogen|Electricity Storage;1
+SE|Electricity;SE|Input|Electricity|Hydrogen;1
 SE|Electricity;SE|Input|Electricity|Buildings;1
 SE|Electricity;SE|Input|Electricity|Industry;1
 SE|Electricity;SE|Input|Electricity|Transport;1

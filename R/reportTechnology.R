@@ -169,17 +169,10 @@ reportTechnology <- function(gdx, output = NULL, regionSubsetList = NULL,
     techmap[["refdip"]] <- "Liquids|Fossil|Oil"
   }
 
-  if ("windon" %in% te) {
-    techmap <- append(techmap, c("windon" = "Electricity|Wind|Onshore",
-                                 "storwindon" = "Electricity|Storage|Battery|For Wind Onshore",
-                                 "windoff" = "Electricity|Wind|Offshore",
-                                 "storwindoff" = "Electricity|Storage|Battery|For Wind Offshore"))
-  } else {
-    techmap <- append(techmap, c("wind" = "Electricity|Wind|Onshore",
-                                 "storwind" = "Electricity|Storage|Battery|For Wind Onshore",
-                                 "windoff" = "Electricity|Wind|Offshore",
-                                 "storwindoff" = "Electricity|Storage|Battery|For Wind Offshore"))
-  }
+  techmap <- append(techmap, c("windon" = "Electricity|Wind|Onshore",
+                                "storwindon" = "Electricity|Storage|Battery|For Wind Onshore",
+                                "windoff" = "Electricity|Wind|Offshore",
+                                "storwindoff" = "Electricity|Storage|Battery|For Wind Offshore"))
 
   bar_and <- function(str) {
     ## prepend pipe if not empty

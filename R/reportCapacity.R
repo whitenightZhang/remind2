@@ -75,22 +75,10 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
   dataoc <- new.magpie(getRegions(vm_cap), getYears(pm_prodCouple), magclass::getNames(pm_prodCouple), fill = 0)
   dataoc[getRegions(pm_prodCouple), , ] <- pm_prodCouple
   getSets(dataoc) <- getSets(pm_prodCouple)
-
   dataoc[dataoc < 0] <- 0
-
-  # determine whether onshore wind is called wind or windon
-  if ("windon" %in% magclass::getNames(vm_cap, dim = 1)) {
-    windonStr <- "windon"
-    storwindonStr <- "storwindon"
-  } else {
-    windonStr <- "wind"
-    storwindonStr <- "storwind"
-  }
 
   ####### internal function for reporting ###########
   # this function is just a shortcut for setNames(dimSums(vm_cap ...))
-  
-
   capacity_reporting <- function(prefix = "Cap") {
     if(prefix == "Cap") {
       unit <- " (GW)"
@@ -114,7 +102,7 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
       get_cap("geohdr",                "|Electricity|+|Geothermal"),
       get_cap("hydro",                 "|Electricity|+|Hydro"),
       get_cap(c("spv", "csp"),         "|Electricity|+|Solar"),
-      get_cap(c(windonStr, "windoff"), "|Electricity|+|Wind")
+      get_cap(c("windon", "windoff"), "|Electricity|+|Wind")
     )
 
     cap_electricity <- mbind(
@@ -157,14 +145,14 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
       get_cap(c("biochp", "gaschp", "coalchp"), "|Electricity|CHP"),
       get_cap("spv",                            "|Electricity|Solar|+|PV"),
       get_cap("csp",                            "|Electricity|Solar|+|CSP"),
-      get_cap(windonStr,                        "|Electricity|Wind|+|Onshore"),
+      get_cap("windon",                         "|Electricity|Wind|+|Onshore"),
       get_cap("windoff",                        "|Electricity|Wind|+|Offshore")
     )
 
     # battery storage
     cap_storage <- mbind(
       get_cap("storspv",                        "|Electricity|Storage|Battery|For PV", factor = 4),
-      get_cap(c(storwindonStr, "storwindoff"),  "|Electricity|Storage|Battery|For Wind", factor = 1.2)
+      get_cap(c("storwindon", "storwindoff"),  "|Electricity|Storage|Battery|For Wind", factor = 1.2)
     )
     cap_storage <- mbind(cap_storage, setNames(dimSums(cap_storage, dim = 3), full_name("|Electricity|Storage|Battery"))) # sum of the above
 

@@ -32,5 +32,5 @@ reportPE(gdx)
 
 }
 \author{
-Lavinia Baumstark
+Lavinia Baumstark, Fabrice Lécuyer
 }

@@ -1,0 +1,498 @@
+---
+title: "Regional quantity target convergence"
+output:
+  html_document:
+    toc: false
+    toc_float: true
+    toc_depth: 5
+    code_folding: hide
+params:
+  gdx: "fulldata.gdx"
+  warning: false
+  message: false
+  figWidth: 16
+---
+
+<style>
+  #header {
+    display: none !important
+  }
+  .main-container {
+    max-width: 95% !important;
+  }
+  .toc-content {
+    padding-left: 0px !important;
+  }
+  .svg-container {
+    margin: auto !important;
+  }
+  .code-folding-btn {
+    display: none;
+  }
+</style>
+
+<script type="text/javascript">
+$(document).ready(function() {
+  var $tocItems = $(".tocify-subheader li.tocify-item"); // selector for all TOC items
+  var $tabs     = $("a[role=\"tab\"]");                  // selector for all tabs
+  var $panels   = $("div[role=\"tabpanel\"]");           // selector for all tabpanels
+
+  $tocItems.hide();  // hide all TOC items
+
+  // get the tab name for each section header (e.g. mammals)
+  // and assign it to its corresponding toc item
+  $panels.find("div[data-unique]").each(function() {
+    var key = $(this).attr("data-unique");
+    var tab = $(this).closest("div[role=\"tabpanel\"]").attr("id");
+    $tocItems.filter("[data-unique=\"" + key + "\"]").attr("tab", tab)
+  })
+  // now each toc item knows to which tab panel it is pointing
+
+  // show the toc items that point to sections on the first panel
+  $tocItems.filter(function() {
+    return($(this).attr("tab") === $tabs.first().text());
+  }).toggle();
+
+  // assign an onclick event to the tabs..
+  $tabs.on("click", function() {
+    $tocItems.hide();  // ... hide all TOC items
+    var key = $(this).text(); // ... get the name of the tab clicked
+    $tocItems.filter(function() {  // ... filter for the toc items pointing to that tab
+      return($(this).attr("tab") === key);
+    }).toggle();  // ... and show them
+  });  
+});
+</script>
+
+```{r loading_libraries, include=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(mip)
+library(gdx)
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  error = TRUE,
+  fig.width = params$figWidth,
+  message = params$message,
+  warning = params$warning
+)
+
+```
+
+```{r data, echo=FALSE, include=FALSE}
+
+pm_implicitQttyTarget <-
+  mip::getPlotData("pm_implicitQttyTarget", params$gdx)
+cm_implicitQttyTarget_tolerance <-
+  mip::getPlotData("cm_implicitQttyTarget_tolerance", params$gdx)$cm_implicitQttyTarget_tolerance
+
+p47_implicitQttyTargetCurrent <-
+  mip::getPlotData("p47_implicitQttyTargetCurrent", params$gdx)
+p47_implicitQttyTargetCurrent_iter <-
+  mip::getPlotData("p47_implicitQttyTargetCurrent_iter", params$gdx)
+
+p47_implicitQttyTargetTax <-
+  mip::getPlotData("p47_implicitQttyTargetTax", params$gdx)
+p47_implicitQttyTargetTax_iter <-
+  mip::getPlotData("p47_implicitQttyTargetTax_iter", params$gdx)
+
+pm_implicitQttyTarget_dev <-
+  mip::getPlotData("pm_implicitQttyTarget_dev", params$gdx)
+p47_implicitQttyTarget_dev_iter <-
+  mip::getPlotData("p47_implicitQttyTarget_dev_iter", params$gdx)
+
+p47_implicitQttyTargetTaxRescale <-
+  mip::getPlotData("p47_implicitQttyTargetTaxRescale", params$gdx)
+p47_implicitQttyTargetTaxRescale_iter <-
+  mip::getPlotData("p47_implicitQttyTargetTaxRescale_iter", params$gdx)
+
+pm_implicitQttyTarget_isLimited <-
+  mip::getPlotData("pm_implicitQttyTarget_isLimited", params$gdx)
+
+
+p47_implicitQttyTarget_initialYear <-
+  mip::getPlotData("p47_implicitQttyTarget_initialYear", params$gdx)
+p47_implicitQttyTargetReferenceIteration <-
+  mip::getPlotData("p47_implicitQttyTargetReferenceIteration", params$gdx)
+p47_implicitQttyTargetIterationCount <-
+  mip::getPlotData("p47_implicitQttyTargetIterationCount", params$gdx)
+
+p47_implicitQttyTargetActive_iter <-
+  mip::getPlotData("p47_implicitQttyTargetActive_iter", params$gdx)
+
+tgts <-
+  pm_implicitQttyTarget %>% select(ext_regi, ttot, qttyTarget, qttyTarget, qttyTargetGroup) %>% mutate_at(c('ttot'), as.numeric) %>% mutate(group = paste0(qttyTarget, " ", qttyTargetGroup, " - ", ttot))
+tgtRegions <- unique(tgts$ext_regi)
+
+regi <- gdx::readGDX(params$gdx, "regi")
+ext_regi <- gdx::readGDX(params$gdx, "ext_regi")
+regi_groupExt <- gdx::readGDX(params$gdx, "regi_groupExt")
+regi_group <- gdx::readGDX(params$gdx, "regi_group")
+emiMktGroup <- gdx::readGDX(params$gdx, "emiMktGroup")
+
+```
+
+```{r initializeCharts, echo=FALSE, include=FALSE}
+
+#aesthetics
+booleanColor <- c("yes" = "#00BFC4", "no" = "#F8766D")
+qttyTaxColor <- c("qtty" = "#00BFC4", "price" = "#F8766D")
+
+g <- NULL
+
+```
+
+
+
+<!-- quantities and taxes -->
+```{r qttyAndTax chart, echo=FALSE, include=FALSE}
+
+#Convert regi to ext_regi and vice-versa
+convGroupExt <- NULL
+for (tgtReg in unique(tgts$ext_regi)) {
+  if (tgtReg %in% regi)
+    convGroupExt <- c(convGroupExt, setNames(tgtReg, tgtReg))
+  else
+    convGroupExt <-
+      c(convGroupExt,
+        setNames(
+          regi_groupExt %>% filter(ext_regi == tgtReg,!(all_regi %in% tgtReg)) %>% slice(1) %>% pull(all_regi),
+          tgtReg
+        ))
+}
+
+TWa_2_EJ     <- 31.536
+tdptwyr2dpgj <- 31.71
+
+plotData <-
+  left_join(
+    left_join(
+      left_join(
+        p47_implicitQttyTargetCurrent_iter %>%
+          mutate(p47_implicitQttyTargetCurrent_iter = p47_implicitQttyTargetCurrent_iter *
+                   TWa_2_EJ),
+        p47_implicitQttyTargetTax_iter %>%
+          filter(all_regi %in% convGroupExt) %>%
+          mutate(
+            ext_regi = setNames(names(convGroupExt), convGroupExt)[all_regi],
+            p47_implicitQttyTargetTax_iter = p47_implicitQttyTargetTax_iter *
+              tdptwyr2dpgj
+          ) %>%
+          select(-all_regi),
+        by = c(
+          "iteration",
+          "ttot",
+          "ext_regi",
+          "qttyTarget",
+          "qttyTargetGroup"
+        )
+      ),
+      p47_implicitQttyTarget_dev_iter,
+      by = c(
+        "iteration",
+        "ttot",
+        "ext_regi",
+        "qttyTarget",
+        "qttyTargetGroup"
+      )
+    ),
+    p47_implicitQttyTargetTaxRescale_iter,
+    by = c(
+      "iteration",
+      "ttot",
+      "ext_regi",
+      "qttyTarget",
+      "qttyTargetGroup"
+    )
+  ) %>%
+  mutate(
+    target = paste0(qttyTarget, " ", qttyTargetGroup),
+    tooltip = paste0(
+      "Iteration : ",
+      iteration,
+      "<br>",
+      "Quantity : ",
+      round(p47_implicitQttyTargetCurrent_iter, 2),
+      " EJ<br>",
+      "Tax : ",
+      round(p47_implicitQttyTargetTax_iter, 2),
+      " US$2005/GJ<br>",
+      "Convergence : ",
+      ifelse(
+        is.na(p47_implicitQttyTargetTaxRescale_iter),
+        "not active",
+        ifelse((
+          p47_implicitQttyTarget_dev_iter <= cm_implicitQttyTarget_tolerance
+        ) &
+          (
+            p47_implicitQttyTarget_dev_iter >= -cm_implicitQttyTarget_tolerance
+          ),
+        "converged",
+        paste0(
+          "not converged<br>",
+          "Deviation: ",
+          round(100 * p47_implicitQttyTarget_dev_iter, 2),
+          "%",
+          ifelse(cm_implicitQttyTarget_tolerance >= 0, " > ", " < -"),
+          round(100 * cm_implicitQttyTarget_tolerance, 2),
+          "%<br>",
+          "Rescale for next iteration: ",
+          round(p47_implicitQttyTargetTaxRescale_iter, 2)
+        )
+        )
+      )
+    )
+  )
+
+
+g[["qtty_and_tax"]] <-
+  lapply(setNames(tgtRegions, tgtRegions), function(reg) {
+    subGroup <-
+      setNames(
+        tgts %>% filter(ext_regi == reg) %>% pull(ttot),
+        tgts %>% filter(ext_regi == reg) %>% pull(group)
+      )
+    lapply(subGroup, function(tgtPeriod) {
+      d <- plotData %>% filter(ext_regi == reg, ttot == tgtPeriod)
+      secAxisScale <-
+        max(d %>% pull(p47_implicitQttyTargetTax_iter)) / max(d %>% pull(p47_implicitQttyTargetCurrent_iter))
+      
+      yAxisLabel <- unique(d$target)
+      
+      p <- plot_ly(data = d, height = 350) %>% #
+        add_trace(
+          x = ~ iteration,
+          y = ~ p47_implicitQttyTargetCurrent_iter,
+          name = yAxisLabel,
+          mode = "lines",
+          type = "scatter",
+          line = list(color = qttyTaxColor["qtty"]),
+          hoverinfo = "none",
+          hoverinfo = 'skip'
+        ) %>%
+        add_trace(
+          x = ~ iteration,
+          y = ~ p47_implicitQttyTargetTax_iter,
+          name = "Price",
+          yaxis = "y2",
+          mode = "lines",
+          type = "scatter",
+          line = list(color = qttyTaxColor["price"]),
+          hoverinfo = "none",
+          hoverinfo = 'skip'
+        ) %>%
+        # add trace only for hover info (hack to disable line in hovermode = "x unified"
+        add_trace(
+          x = ~ iteration,
+          y = ~ p47_implicitQttyTargetCurrent_iter,
+          mode = "lines",
+          type = "scatter",
+          hoverinfo = "text",
+          line = list(width = 0),
+          hovertext = d$tooltip
+        ) %>%
+        layout(
+          #template = 'plotly_white',
+          hovermode = "x unified",
+          showlegend = FALSE,
+          margin = list(r = 60),
+          xaxis = list(
+            zeroline = FALSE,
+            range = c(0.5, max(d$iteration) + 0.5),
+            title = "Iterations",
+            gridcolor = "#e8e8e8",
+            mirror = TRUE,
+            ticks = 'outside',
+            showline = TRUE,
+            linecolor = "#adadad",
+            linewidth = 2
+          ),
+          yaxis = list(
+            zeroline = TRUE,
+            zerolinecolor = "#e8e8e8",
+            zerolinewidth = 3,
+            title = list(
+              text = paste0(yAxisLabel, " (EJ)"),
+              font = list(color = qttyTaxColor["qtty"])
+            ),
+            range = c(min(
+              0, min(d %>% pull(p47_implicitQttyTargetCurrent_iter)) - max(d %>% pull(p47_implicitQttyTargetCurrent_iter)) *
+                0.05
+            ), max(
+              d %>% pull(p47_implicitQttyTargetCurrent_iter)
+            ) * 1.05),
+            gridcolor = "#e8e8e8",
+            ticks = 'outside',
+            showline = TRUE,
+            linecolor = "#adadad",
+            linewidth = 2
+          ),
+          yaxis2 = list(
+            zeroline = TRUE,
+            zerolinecolor = "#e8e8e8",
+            zerolinewidth = 3,
+            showgrid = FALSE,
+            title = list(text = "Tax (US$2005/GJ)", font = list(color =
+                                                                  qttyTaxColor["price"])),
+            overlaying = "y",
+            side = "right",
+            range = c(
+              min(
+                0,
+                min(d %>% pull(p47_implicitQttyTargetCurrent_iter)) * secAxisScale - max(d %>% pull(p47_implicitQttyTargetCurrent_iter)) *
+                  secAxisScale * 0.05
+              ),
+              max(d %>% pull(p47_implicitQttyTargetCurrent_iter)) * secAxisScale * 1.05
+            ),
+            ticks = 'outside',
+            showline = TRUE,
+            linecolor = "#adadad",
+            linewidth = 2
+          )
+        )
+    })
+  })
+
+
+```
+
+
+ <!-- deviation -->
+```{r deviation chart, echo=FALSE, include=FALSE}
+
+# deviation chart
+plotData <- p47_implicitQttyTarget_dev_iter %>%
+  mutate(
+    converged = ifelse((
+      .data$p47_implicitQttyTarget_dev_iter <=  cm_implicitQttyTarget_tolerance
+    ) &
+      (
+        .data$p47_implicitQttyTarget_dev_iter >= -cm_implicitQttyTarget_tolerance
+      ),
+    "yes",
+    "no"
+    ),
+    tooltip = paste0(
+      "Iteration: ",
+      .data$iteration,
+      "<br>",
+      ifelse((
+        .data$p47_implicitQttyTarget_dev_iter <=  cm_implicitQttyTarget_tolerance
+      ) &
+        (
+          .data$p47_implicitQttyTarget_dev_iter >= -cm_implicitQttyTarget_tolerance
+        ),
+      paste0(
+        "Converged<br>",
+        "Deviation: ",
+        round(100 * .data$p47_implicitQttyTarget_dev_iter, 2),
+        "%"
+      ),
+      paste0(
+        "Not converged<br>",
+        "Deviation: ",
+        round(100 * .data$p47_implicitQttyTarget_dev_iter, 2),
+        "%",
+        ifelse(p47_implicitQttyTarget_dev_iter >= 0, " > ", " < -"),
+        round(100 * cm_implicitQttyTarget_tolerance, 2),
+        "%"
+      )
+      )
+    )
+  )
+
+g[["deviation"]] <-
+  lapply(setNames(tgtRegions, tgtRegions), function(reg) {
+    subGroup <-
+      setNames(
+        tgts %>% filter(ext_regi == reg) %>% pull(ttot),
+        tgts %>% filter(ext_regi == reg) %>% pull(group)
+      )
+    lapply(subGroup, function(tgtPeriod) {
+      d <- plotData %>% filter(ext_regi == reg, ttot == tgtPeriod)
+      p <-
+        ggplot(d,
+               aes_string(x = "iteration", y = "p47_implicitQttyTarget_dev_iter")) +
+        suppressWarnings(geom_rect(
+          aes(
+            xmin = .data$iteration - 0.5,
+            xmax = .data$iteration + 0.5,
+            ymin = cm_implicitQttyTarget_tolerance * -1,
+            ymax = cm_implicitQttyTarget_tolerance,
+            fill = converged,
+            text = tooltip
+          ),
+          alpha = 0.2
+        )) +
+        suppressWarnings(geom_line(aes_string(group = 1, text = "tooltip"))) +
+        scale_y_continuous(
+          breaks = c(
+            -5 * cm_implicitQttyTarget_tolerance,
+            -cm_implicitQttyTarget_tolerance,
+            0,
+            cm_implicitQttyTarget_tolerance,
+            5 * cm_implicitQttyTarget_tolerance
+          ),
+          labels = scales::percent_format(accuracy = 1)
+        ) +
+        scale_fill_manual(values = booleanColor) +
+        theme_bw() +
+        theme(
+          strip.background = element_blank(),
+          axis.title.x = element_blank(),
+          legend.position = "none"
+        ) +
+        coord_cartesian(
+          ylim = c(
+            -5 * cm_implicitQttyTarget_tolerance,
+            +5 * cm_implicitQttyTarget_tolerance
+          )
+        ) +
+        ylab("Deviation (%)") +
+        scale_x_continuous(expand = c(0, 0),
+                           breaks = 1:max(d$iteration)) +
+        #xlim(0,max(d$iteration)+1) +
+        theme(plot.margin = margin(0, 42, 0, 22, "pt")) # t,r,b,l
+      
+      plotly::ggplotly(p, tooltip = c("text"), height = 200) #, autosize = FALSE
+    })
+  })
+
+```
+
+
+
+## {.tabset}
+
+```{r, include=FALSE}
+
+# Creating sections
+out <- ""
+for(reg in tgtRegions){
+  out <- paste0(out,knitr::knit_expand(text=paste0("### ", reg, " {.tabset}\n\n")))
+  for(subGroup in tgts %>% filter(ext_regi == reg) %>% pull(group)){
+    
+    tgtPeriod <- strsplit(subGroup,"_",fixed=T)[[1]][1]
+    
+    out <- paste0(out,knitr::knit_expand(text=paste0("#### ", subGroup, "\n\n")))
+    
+    out <- paste0(out,knitr::knit_expand(text=paste0("##### Quantity and Tax\n\n")))
+    out <- paste0(out,"```{r , results = 'asis', fig.height=10}\n\n")
+    out <- paste0(out,"g$qtty_and_tax[['", reg, "']][['", subGroup, "']]\n\n")
+    out <- paste0(out,"```\n\n")
+    
+#    out <- paste0(out,knitr::knit_expand(text=paste0("##### Deviation per iteration\n\n")))
+    out <- paste0(out,"```{r , results = 'asis', fig.height=10}\n\n")
+    out <- paste0(out,"g$deviation[['", reg, "']][['", subGroup, "']]\n\n")
+    out <- paste0(out,"```\n\n")
+  }
+}
+
+
+```
+
+`r paste(knitr::knit(text = paste(out, collapse = '\n')))`
+

@@ -342,7 +342,7 @@ reportLCOE <- function(gdx, output.type = "both") {
     # 5. sub-part: storage cost (for wind, spv, csp) ----
 
     # storage cost = investment cost + omf cost
-    # of corresponding storage technology ("storwind", "storspv", "storcsp")
+    # of corresponding storage technology ("storwindon", "storspv", "storcsp")
     # clarify: before, they used omv cost here, but storage, grid etc. does not have omv...instead, we use omf now!
 
     te_annual_stor_cost <- new.magpie(getRegions(te_inv_annuity), ttot_from2005, magclass::getNames(te_inv_annuity), fill = 0)
@@ -356,14 +356,11 @@ reportLCOE <- function(gdx, output.type = "both") {
 
     # 6. sub-part: grid cost ----
 
-    # same as for storage cost only with grid technologies: "gridwind", "gridspv", "gridcsp"
-    # only "gridwind" technology active, wind requires 1.5 * the gridwind capacities as spv and csp
+    # same as for storage cost only with grid technologies: "gridwindon", "gridspv", "gridcsp"
+    # only "gridwindon" technology active, wind requires 1.5 * the gridwind capacities as spv and csp
 
     grid_factor_tech <- new.magpie(names = te2grid$all_te, fill = 1)
     getSets(grid_factor_tech)[3] <- "all_te"
-    if ("wind" %in% getNames(grid_factor_tech)) {
-      grid_factor_tech[, , "wind"] <- 1.5
-    }
     grid_factor_tech[, , "windon"] <- 1.5
     grid_factor_tech[, , "windoff"] <- 3.0
 
@@ -371,17 +368,14 @@ reportLCOE <- function(gdx, output.type = "both") {
     te_annual_grid_cost <- new.magpie(getRegions(te_inv_annuity), ttot_from2005, magclass::getNames(te_inv_annuity), fill = 0)
     te_annual_grid_cost_wadj <- new.magpie(getRegions(te_inv_annuity), ttot_from2005, magclass::getNames(te_inv_annuity), fill = 0)
 
-
-    gridwindonStr <- ifelse("windon" %in% te2grid$all_te, "gridwindon", "gridwind")
-
     te_annual_grid_cost[, , te2grid$all_te] <-
-      collapseNames(te_annual_inv_cost[, ttot_from2005, gridwindonStr] + te_annual_OMF_cost[, , gridwindonStr]) *
+      collapseNames(te_annual_inv_cost[, ttot_from2005, "gridwindon"] + te_annual_OMF_cost[, , "gridwindon"]) *
       1 / vm_VRE_prodSe_grid *
       # this multiplcative factor is added to reflect higher grid demand of wind, see q32_limitCapTeGrid
       grid_factor_tech * vm_prodSe[, , te2grid$all_te]
 
     te_annual_grid_cost_wadj[, , te2grid$all_te] <-
-      collapseNames(te_annual_inv_cost_wadj[, ttot_from2005, gridwindonStr] + te_annual_OMF_cost[, , gridwindonStr]) *
+      collapseNames(te_annual_inv_cost_wadj[, ttot_from2005, "gridwindon"] + te_annual_OMF_cost[, , "gridwindon"]) *
       1 / vm_VRE_prodSe_grid *
       # this multiplcative factor is added to reflect higher grid demand of wind, see q32_limitCapTeGrid
       grid_factor_tech * vm_prodSe[, , te2grid$all_te]
@@ -1059,9 +1053,9 @@ reportLCOE <- function(gdx, output.type = "both") {
     df.pomeg.expand <- df.pomeg %>%
       # only take capacity distribution of 5-year time steps and up to 50 years of operation
       right_join(df.period_operationPeriod,
-                 relationship = "many-to-many") %>%
+                 relationship = "many-to-many", by = c("opTimeYr")) %>%
       # add energy input and output carrier dimension
-      left_join(en2en)
+      left_join(en2en, by = c("tech"))
 
     # calculate average capacity-weighted and discounted fuel price over lifetime of plant
     df.fuel.price.weighted <- df.pomeg.expand %>%
@@ -1365,7 +1359,8 @@ reportLCOE <- function(gdx, output.type = "both") {
       rename(subrate = value)
 
     df.FEtax <- df.taxrate %>%
-      full_join(df.subrate) %>%
+      full_join(df.subrate, by = c("model", "scenario", "region", "variable", "unit", "period",
+                                   "emi_sectors", "all_enty")) %>%
       # set NA to 0
       mutate(subrate = ifelse(is.na(subrate), 0, subrate),
              taxrate = ifelse(is.na(taxrate), 0, taxrate)) %>%

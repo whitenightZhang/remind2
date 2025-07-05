@@ -1,0 +1,62 @@
+---
+title: "Convergence overview"
+output:
+  html_document:
+    toc: false
+    toc_float: true
+    code_folding: hide
+params:
+  gdx: "fulldata.gdx"
+  warning: false
+  message: false
+  figWidth: 8
+---
+
+<style>
+  #header {
+    display: none !important
+  }
+  .main-container {
+    max-width: 95% !important;
+  }
+  .toc-content {
+    padding-left: 0px !important;
+  }
+  .svg-container {
+    margin: auto !important;
+  }
+</style>
+
+
+```{r loading_libraries, include=FALSE}
+
+library(remind2)
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  error = TRUE,
+  fig.width = params$figWidth,
+  message = params$message,
+  warning = params$warning
+)
+
+```
+
+
+## Convergence Criterias
+
+```{r results = "asis", fig.height=10}
+
+diag <- plotNashConvergence(gdx = params$gdx)
+htmltools::tagList(diag$plot)
+
+```
+
+## Trade summary
+
+```{r results = "asis", fig.height=10}
+
+htmltools::tagList(diag$tradeDetailPlot)
+
+```
+

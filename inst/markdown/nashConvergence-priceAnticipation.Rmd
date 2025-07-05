@@ -1,0 +1,246 @@
+---
+title: "Price anticipation convergence"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+params:
+  gdx: "fulldata.gdx"
+  warning: false
+  message: false
+  figWidth: 8
+---
+
+<style>
+  #header {
+    display: none !important
+  }
+  .main-container {
+    max-width: 95% !important;
+  }
+  .toc-content {
+    padding-left: 0px !important;
+  }
+  .svg-container {
+    margin: auto !important;
+  }
+</style>
+
+```{r loading_libraries, include=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(knitr)
+library(mip)
+library(plotly)
+library(remind2)
+library(scales)
+library(svglite)
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  error = TRUE,
+  fig.width = params$figWidth,
+  message = params$message,
+  warning = params$warning
+)
+
+```
+
+
+```{r setup, echo=FALSE, include=FALSE}
+
+adjustSliderAnimation <- function(p) {
+  return(list(p[[1]] %>% plotly::animation_opts(frame = 1)))
+}
+
+```
+
+
+## Monetary trade deviation
+
+### Max trade expenditure deviation  
+
+- Max deviation of the yearly monetary export/import expenditure due to price change anticipation effect until 2100. [Unit: trillion Dollar]
+- p80_DevPriceAnticipGlobMax2100Iter
+
+```{r results = "asis"}
+
+df <-
+  mip::getPlotData("p80_DevPriceAnticipGlobMax2100Iter", params$gdx)
+
+df.all <-
+  mip::getPlotData("p80_DevPriceAnticipGlobAllMax2100Iter", params$gdx) %>%
+  mutate(all_enty = "all") %>%
+  rename(p80_DevPriceAnticipGlobMax2100Iter = p80_DevPriceAnticipGlobAllMax2100Iter)
+
+df <- rbind(df, df.all)
+
+p <- mip::mipIterations(
+  plotData = df,
+  returnGgplots = TRUE,
+  facetScales = "free_y",
+  xAxis = "iteration",
+  facets = "all_enty",
+  color = NULL,
+  slider = NULL
+)
+
+# add logarithmic scale
+p[[1]] + ggplot2::scale_y_log10(limits = c(1e-4, 1e+1))
+
+```
+
+
+### Per iteration trade expenditure deviation  
+
+- Per iteration deviation of the yearly monetary export/import expenditure due to price change anticipation effect. [Unit: trillion Dollar]
+- p80_DevPriceAnticipGlobIter
+
+```{r results = "asis"}
+
+df <- mip::getPlotData("p80_DevPriceAnticipGlobIter", params$gdx) %>%
+  mutate(ttot := as.numeric(ttot))
+
+p <- mip::mipIterations(
+  plotData = df,
+  xAxis = "ttot",
+  facets = "all_enty",
+  slider = "iteration",
+  facetScales = "free_y",
+  returnGgplots = TRUE
+)
+
+# add logarithmic scale and then convert to plotly
+plots <- p[[1]] + ggplot2::scale_y_log10(limits = c(1e-4, 1e+1))
+plots <- list(plots)
+plots <- lapply(plots, plotly::ggplotly) %>% adjustSliderAnimation()
+
+htmltools::tagList(plots)
+
+```
+
+
+## Price
+
+### Price change due to antecipation  
+
+- Price change of a trade good due to the price anticipation effect. [Unit: Percent]
+- p80_PriceChangePriceAnticipReg
+
+```{r results = "asis"}
+
+df <-
+  mip::getPlotData("p80_PriceChangePriceAnticipReg", params$gdx) %>%
+  mutate(ttot := as.numeric(ttot)) %>%
+  select(-"iteration")
+
+plots <- mip::mipIterations(
+  plotData = df,
+  returnGgplots = TRUE,
+  xAxis = "ttot",
+  facets = "all_regi",
+  color = "all_enty",
+  slider = NULL,
+  facetScales = "free_y"
+)
+
+plots[[1]]
+
+```
+
+## Regional monetary trade deviation
+
+### Regional trade expenditure deviation  
+
+- Regional and per iteration deviation of the yearly monetary export/import expenditure due to price change anticipation effec until 2100. [Unit: trillion Dollar]
+- p80_DevPriceAnticipReg
+
+```{r results = "asis"}
+
+df <- mip::getPlotData("p80_DevPriceAnticipReg", params$gdx) %>%
+  mutate(ttot := as.numeric(ttot)) %>%
+  select(-"iteration")
+
+plots <- mip::mipIterations(
+  plotData = df,
+  returnGgplots = TRUE,
+  xAxis = "ttot",
+  facets = "all_regi",
+  color = "all_enty",
+  slider = NULL,
+  facetScales = "free_y"
+)
+
+plots[[1]]
+
+```
+
+## Global monetary trade deviation
+
+### Global sum of trade expenditure deviation  
+
+- Global sum of deviation of the yearly monetary export/import expenditure due to price change anticipation effect. [Unit: trillion Dollar]
+- p80_DevPriceAnticipGlob
+
+```{r results = "asis"}
+
+df <- mip::getPlotData("p80_DevPriceAnticipGlob", params$gdx) %>%
+  mutate(ttot := as.numeric(ttot)) %>%
+  select(-"iteration")
+
+df.all <-
+  mip::getPlotData("p80_DevPriceAnticipGlobAll", params$gdx) %>%
+  mutate(ttot := as.numeric(ttot), all_enty = "all") %>%
+  rename(p80_DevPriceAnticipGlob = p80_DevPriceAnticipGlobAll) %>%
+  select(-"iteration")
+
+df.allmax <-
+  mip::getPlotData("p80_DevPriceAnticipGlobAllMax", params$gdx) %>%
+  mutate(ttot := as.numeric(ttot), all_enty = "allmax") %>%
+  rename(p80_DevPriceAnticipGlob = p80_DevPriceAnticipGlobAllMax) %>%
+  select(-"iteration")
+
+df <- rbind(df, df.all, df.allmax)
+
+plots <- mip::mipIterations(
+  plotData = df,
+  returnGgplots = TRUE,
+  xAxis = "ttot",
+  facets = "all_enty",
+  color = NULL,
+  slider = NULL,
+  facetScales = "free_y"
+)
+
+plots[[1]]
+
+```
+
+### Max global sum of trade expenditure deviation  
+
+- Max global sum of deviation of the yearly monetary export/import expenditure due to price change anticipation effect. [Unit: trillion Dollar]
+- p80_DevPriceAnticipGlobMax
+
+```{r results = "asis"}
+
+df.max <-
+  mip::getPlotData("p80_DevPriceAnticipGlobMax", params$gdx) %>%
+  select(-"iteration")
+
+plots <- mip::mipIterations(
+  plotData = df.max,
+  returnGgplots = TRUE,
+  xAxis = "ttot",
+  facets = "all_enty",
+  color = NULL,
+  slider = NULL,
+  facetScales = "free_y"
+)
+
+plots[[1]]
+
+```
+
