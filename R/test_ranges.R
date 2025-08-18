@@ -56,8 +56,10 @@ test_ranges <- function(data, tests, reaction = c('message', 'stop'),
          'must be a string.')
   }
 
-  # Test all variables in data_variables agains low and up
+  # Test all variables in data_variables against low and up
   .test <- function(data_variables, low, up) {
+
+    tolerance <- 1e-10
 
     # get the name of the variable dimension in the magpie object
     variable_name <- data_variables %>%
@@ -68,7 +70,7 @@ test_ranges <- function(data, tests, reaction = c('message', 'stop'),
     low_data <- if (!is.null(low) && any(data_variables < low)) {
       data_variables %>%
         magclass_to_tibble() %>%
-        filter(.data$value < low) %>%
+        filter(.data$value < low - tolerance) %>%
         distinct(!!sym(variable_name), .keep_all = TRUE) %>%
         unite('text', everything(), sep = '   ') %>%
         pull('text')
@@ -80,7 +82,7 @@ test_ranges <- function(data, tests, reaction = c('message', 'stop'),
     up_data <- if (!is.null(up) && any(data_variables > up)) {
       data_variables %>%
         magclass_to_tibble() %>%
-        filter(.data$value > up) %>%
+        filter(.data$value > up + tolerance) %>%
         distinct(!!sym(variable_name), .keep_all = TRUE) %>%
         unite('text', everything(), sep = '   ') %>%
         pull('text')
@@ -100,6 +102,7 @@ test_ranges <- function(data, tests, reaction = c('message', 'stop'),
   data_names <- last(getNames(data, fulldim = TRUE))
   msg <- list()
   for (t in tests) {
+
     # if t has no 'ignore.case' element, or it is not set to FALSE, do not
     # ignore the case
     ignore.case <- !'ignore.case' %in% names(t) || !isFALSE(t$ignore.case)

@@ -22,6 +22,7 @@ Emi|GHG;Emi|GHG|Gross|Waste;1
 Emi|GHG;Emi|GHG|+++|Agriculture;1
 Emi|GHG;Emi|GHG|+++|Land-Use Change;1
 Emi|GHG;Emi|CO2|CDR|+|BECCS;1
+Emi|GHG;Emi|CO2|CDR|+|Biochar;1
 Emi|GHG;Emi|CO2|CDR|+|DACCS;1
 Emi|GHG;Emi|CO2|CDR|+|EW;1
 Emi|GHG;Emi|CO2|CDR|+|OAE;1
@@ -39,6 +40,7 @@ Emi|CO2;Emi|CO2|Gross|Waste;1
 Emi|CO2;Emi|CO2|+|Land-Use Change;1
 Emi|CO2;Emi|CO2|+|Industrial Processes;1
 Emi|CO2;Emi|CO2|CDR|+|BECCS;1
+Emi|CO2;Emi|CO2|CDR|+|Biochar;1
 Emi|CO2;Emi|CO2|CDR|+|DACCS;1
 Emi|CO2;Emi|CO2|CDR|+|EW;1
 Emi|CO2;Emi|CO2|CDR|+|OAE;1
@@ -66,6 +68,7 @@ Emi|CO2|Cumulated;Emi|CO2|Cumulated|Gross|Energy|Supply|Non-electric;1
 Emi|CO2|Cumulated;Emi|CO2|Cumulated|Gross|Energy|Supply|Electricity;1
 Emi|CO2|Cumulated;Emi|CO2|Cumulated|Gross|Waste;1
 Emi|CO2|Cumulated;Emi|CO2|Cumulated|CDR|BECCS;1
+Emi|CO2|Cumulated;Emi|CO2|Cumulated|CDR|Biochar;1
 Emi|CO2|Cumulated;Emi|CO2|Cumulated|CDR|Synthetic Fuels CCS;1
 Emi|CO2|Cumulated;Emi|CO2|Cumulated|CDR|DACCS;1
 Emi|CO2|Cumulated;Emi|CO2|Cumulated|CDR|EW;1
@@ -74,6 +77,7 @@ Emi|CO2|Cumulated;Emi|CO2|Cumulated|CDR|OAE;1
 ;;
 # total CDR;;
 Emi|CO2|CDR;Emi|CO2|CDR|+|Land-Use Change;1
+Emi|CO2|CDR;Emi|CO2|CDR|+|Biochar;1
 Emi|CO2|CDR;Emi|CO2|CDR|BECCS|+|Pe2Se;1
 Emi|CO2|CDR;Emi|CO2|CDR|BECCS|+|Demand Side;1
 Emi|CO2|CDR;Emi|CO2|CDR|+|Synthetic Fuels CCS;1

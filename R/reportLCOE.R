@@ -82,7 +82,7 @@ reportLCOE <- function(gdx, output.type = "both") {
   ttot_before2005 <- paste0("y", ttot[which(ttot <= 2000)])
   ttot_from2005 <- paste0("y", ttot[which(ttot >= 2005)])
   te        <- readGDX(gdx, "te")
-  te <- te[!te %in% c("lng_liq", "gas_pipe", "lng_gas", "lng_ves", "coal_ves", "pipe_gas", "termX_lng", "termM_lng", "vess_lng")]
+  te <- te[!te %in% c("lng_liq", "gas_pipe", "lng_gas", "lng_ves", "coal_ves", "pipe_gas", "termX_lng", "termM_lng", "vess_lng", "biocharuse")]
   p_priceCO2 <- readGDX(gdx, name = c("p_priceCO2", "pm_priceCO2"), format = "first_found") # co2 price
 
 

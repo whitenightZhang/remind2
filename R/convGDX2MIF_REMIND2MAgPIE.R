@@ -34,6 +34,8 @@ convGDX2MIF_REMIND2MAgPIE <- function(gdx, file = NULL, scenario = "default",
   output <- NULL
   message("running reportMacroEconomy...")
   output <- mbind(output,reportMacroEconomy(gdx,regionSubsetList,t)[,t,])
+  message("running reportTrade...")
+  output <- mbind(output, reportTrade(gdx, regionSubsetList, t)[, t, ])
   message("running reportPE...")
   output <- mbind(output,reportPE(gdx,regionSubsetList,t)[,t,])
   message("running reportSE...")
@@ -45,7 +47,7 @@ convGDX2MIF_REMIND2MAgPIE <- function(gdx, file = NULL, scenario = "default",
   message("running reportEmi...")
   output <- mbind(output,reportEmi(gdx,output,regionSubsetList,t)[,t,])    # needs output from reportFE
   message("running reportPrices...")
-  output <- mbind(output,reportPrices(gdx,output,regionSubsetList,t)[,t,]) # needs output from reportSE, reportFE, reportEmi, reportExtraction, reportMacroEconomy
+  output <- mbind(output,reportPrices(gdx,output,regionSubsetList,t)[,t,]) # needs output from reportTrade, reportSE, reportFE, reportEmi, reportExtraction, reportMacroEconomy
 
   # Add dimension names "scenario.model.variable"
   magclass::getSets(output)[3] <- "variable"

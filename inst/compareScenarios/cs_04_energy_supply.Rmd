@@ -312,6 +312,7 @@ items <- c(
   "PE|Biomass|Liquids|w/ CC",
   "PE|Biomass|Liquids|w/o CC",
   "PE|Biomass|Solids",
+  "PE|Biomass|Biochar",
   NULL)
 
 showLinePlots(data, tot)

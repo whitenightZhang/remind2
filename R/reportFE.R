@@ -909,7 +909,7 @@ reportFE <- function(gdx, regionSubsetList = NULL,
         "FE|Industry|Chemicals|HVC|+|From liquids-based methanol with CC (EJ/yr)",           NULL,      NULL,          "hvc_meLiq_cc",                               "chemicals",
         "FE|Industry|Chemicals|HVC|+|From green hydogren-based methanol (EJ/yr)",            NULL,      NULL,          "hvc_meh2",                                   "chemicals",
         "FE|Industry|Chemicals|HVC|+|From chemical recycling (EJ/yr)",                       NULL,      NULL,          "hvc_stCrChemRe",                             "chemicals",
-        "FE|Industry|Chemicals|HVC|+|From chemical recycling via methanol(EJ/yr)",           NULL,      NULL,          "hvc_mechemRe",                               "chemicals",
+        "FE|Industry|Chemicals|HVC|+|From chemical recycling via methanol (EJ/yr)",           NULL,      NULL,          "hvc_mechemRe",                               "chemicals",
         "FE|Industry|Chemicals|HVC|+|From mechanical recycling (EJ/yr)",                     NULL,      NULL,          "mech_recycle",                               "chemicals",
 
         "FE|Industry|Chemicals|Fertilizer|+|From solids-based ammonia (EJ/yr)",              NULL,      NULL,           "fertilizer_amSol",                          "chemicals",
@@ -940,7 +940,7 @@ reportFE <- function(gdx, regionSubsetList = NULL,
         
         "FE|Industry|Chemicals|Ammonia|+|Solids-based (EJ/yr)",                              NULL,      "amSyCoal",     c("amFinal_sol", "fertilizer_amSol"),        "chemicals",
         "FE|Industry|Chemicals|Ammonia|+|Gas-based (EJ/yr)",                                 NULL,      "amSyNG",       c("amFinal_ng", "fertilizer_amNg"),          "chemicals",
-        "FE|Industry|Chemicals|Ammonia|+|Liquids-based (EJ/yr)",                             NULL,      "amSyLiq",      c("amFinal_liq", "fertilizer_amliq"),        "chemicals",
+        "FE|Industry|Chemicals|Ammonia|+|Liquids-based (EJ/yr)",                             NULL,      "amSyLiq",      c("amFinal_liq", "fertilizer_amLiq"),        "chemicals",
         "FE|Industry|Chemicals|Ammonia|+|Solids-based with CC (EJ/yr)",                      NULL,      c("amSyCoal","amSyCoal_cc"),   c("amFinal_sol_cc", "fertilizer_amSol_cc"),  "chemicals",
         "FE|Industry|Chemicals|Ammonia|+|Gas-based with CC (EJ/yr)",                         NULL,      c("amSyNG","amSyNG_cc"),     c("amFinal_ng_cc", "fertilizer_amNg_cc"),    "chemicals",
         "FE|Industry|Chemicals|Ammonia|+|Liquids-based with CC (EJ/yr)",                     NULL,      c("amSyLiq","amSyLiq_cc"),     c("amFinal_liq_cc", "fertilizer_amLiq_cc"),  "chemicals",
@@ -952,9 +952,9 @@ reportFE <- function(gdx, regionSubsetList = NULL,
         "FE|Industry|Chemicals|Methanol|+|Solids and green hydrogen-based (EJ/yr)",          NULL,      "meSySol",      c("meFinal_sol_gh2", "hvc_meSol_gh2"),       "chemicals",
         "FE|Industry|Chemicals|Methanol|+|Solids-based with CC (EJ/yr)",                     NULL,      c("meSySol","meSySol_cc"),    c("meFinal_sol_cc", "hvc_meSol_cc"),         "chemicals",
         "FE|Industry|Chemicals|Methanol|+|Gas-based with CC (EJ/yr)",                        NULL,      c("meSyNG","meSyNG_cc"),     c("meFinal_ng_cc", "hvc_meNg_cc"),           "chemicals",
-        "FE|Industry|Chemicals|Methanol|+|Liquids-based with CC  (EJ/yr)",                   NULL,      c("meSyLiq","meSyLiq_cc"),    c("meFinal_liq_cc", "hvc_meLiq_cc"),         "chemicals",
-        "FE|Industry|Chemicals|Methanol|+|Green hydrogen-based  (EJ/yr)",                    NULL,      "meSyH2",       c("meFinal_h2", "hvc_meh2"),                 "chemicals",
-        "FE|Industry|Chemicals|Methanol|+|Chemical recycling  (EJ/yr)",                      NULL,      "meSyChemRe",   c("hvc_mechemRe", "meFinal_chemRe"),                 "chemicals"
+        "FE|Industry|Chemicals|Methanol|+|Liquids-based with CC (EJ/yr)",                   NULL,      c("meSyLiq","meSyLiq_cc"),    c("meFinal_liq_cc", "hvc_meLiq_cc"),         "chemicals",
+        "FE|Industry|Chemicals|Methanol|+|Green hydrogen-based (EJ/yr)",                    NULL,      "meSyH2",       c("meFinal_h2", "hvc_meh2"),                 "chemicals",
+        "FE|Industry|Chemicals|Methanol|+|Chemical recycling (EJ/yr)",                      NULL,      "meSyChemRe",   c("hvc_mechemRe", "meFinal_chemRe"),                 "chemicals"
         )
 
       out <- mbind(
@@ -1032,41 +1032,27 @@ reportFE <- function(gdx, regionSubsetList = NULL,
         "Production|Industry|Steel|+|SCRAP-EAF (Mt/yr)",      "sesteel",     "seceaf"
       )
 
-      # reporting of process-based industry production per process-route
-      if (steel_process_based) {
-        mixer <- tribble(
-          ~variable,                                            ~mat,          ~route,
-          "Production|Industry|Steel|+|BF-BOF (Mt/yr)",         "prsteel",     "bfbof",
-          "Production|Industry|Steel|+|BF-BOF-CCS (Mt/yr)",     "prsteel",     "bfbof_ccs",
-          "Production|Industry|Steel|+|DRI-NG-EAF (Mt/yr)",     "prsteel",     "idreaf_ng",
-          "Production|Industry|Steel|+|DRI-NG-EAF-CCS (Mt/yr)", "prsteel",     "idreaf_ng_ccs",
-          "Production|Industry|Steel|+|DRI-H2-EAF (Mt/yr)",     "prsteel",     "idreaf_h2",
-          "Production|Industry|Steel|+|SCRAP-EAF (Mt/yr)",      "sesteel",     "seceaf"
-        )
+      out <- mbind(c(list(out),
+                    .select_sum_name_multiply(o37_ProdIndRoute, .mixer_to_selector(mixer), factor=1e3))) # factor 1e3 converts Gt/yr to Mt/yr
+    }
 
-        out <- mbind(c(list(out),
-                     .select_sum_name_multiply(o37_ProdIndRoute, .mixer_to_selector(mixer), factor=1e3))) # factor 1e3 converts Gt/yr to Mt/yr
-      }
+    #TOCHECK:QIANZHI
+    if (chemicals_process_based) {
 
-      #TOCHECK:QIANZHI
-      if (chemicals_process_based) {
+      mixer <- tribble(
+        ~variable,                                                         ~all_enty,
+        "Production|Industry|Chemicals|Other Chemicals (Mt/yr)",           "otherChem",
+        "Production|Industry|Chemicals|HVC (Mt/yr)",                       "hvc",
+        "Production|Industry|Chemicals|Fertilizer (Mt/yr)",                "fertilizer",
+        "Production|Industry|Chemicals|Methanol Final (Mt/yr)",            "methFinal",
+        "Production|Industry|Chemicals|Ammonia Final (Mt/yr)",             "ammoFinal",
+        "Production|Industry|Chemicals|Methanol (Mt/yr)",                  c("methanol","methanolH2"),
+        "Production|Industry|Chemicals|Ammonia (Mt/yr)",                   c("ammonia","ammoniaH2"))
 
-        mixer <- tribble(
-         ~variable,                                                         ~all_enty,
-          "Production|Industry|Chemicals|Other Chemicals (Mt/yr)",           "OtherChem",
-          "Production|Industry|Chemicals|HVC (Mt/yr)",                       "HVC",
-          "Production|Industry|Chemicals|Fertilizer (Mt/yr)",                "Fertilizer",
-          "Production|Industry|Chemicals|Methanol Final (Mt/yr)",            "MethFinal",
-          "Production|Industry|Chemicals|Ammonia Final (Mt/yr)",             "AmmoFinal",
-          "Production|Industry|Chemicals|Methanol (Mt/yr)",                  c("methanol","methanolH2"),
-          "Production|Industry|Chemicals|Ammonia (Mt/yr)",                   c("ammonia","ammoniaH2"))
- 
-         # TODO: Missing - OtherChem, Fertilizer, HVC
-
-        out <- mbind(
-          c(list(out), # pass a list of magpie objects
-            .select_sum_name_multiply(v37_matFlow, .mixer_to_selector(mixer), factor=1e3)
-          ))
+      out <- mbind(
+        c(list(out), # pass a list of magpie objects
+          .select_sum_name_multiply(v37_matFlow, .mixer_to_selector(mixer), factor=1e3)
+        ))
           
       # TODO: think about routes in chemicals
        mixer <- tribble(
@@ -1136,9 +1122,8 @@ reportFE <- function(gdx, regionSubsetList = NULL,
        out <- mbind(c(list(out),
                     .select_sum_name_multiply(o37_ProdIndRoute, .mixer_to_selector(mixer), factor=1e3))) # factor 1e3 converts Gt/yr to Mt/yr
                     
-      }
     }
-  }
+  }  
 
 
   #--- Transport reporting ---
@@ -1241,7 +1226,7 @@ reportFE <- function(gdx, regionSubsetList = NULL,
   # split sectoral biomass in modern and traditional for exogains
   # allocate tradional biomass to buildings first and only consider industry if
   # all biomass in buildings is traditional. All fossil solids are coal.
-  out <- mbind(out, setNames(asS4(pmin(out[, , "FE|Solids|Biomass|+|Traditional (EJ/yr)"],
+  out <- mbind(out, setNames(asS4(base::pmin(out[, , "FE|Solids|Biomass|+|Traditional (EJ/yr)"],
                                        out[, , "FE|Buildings|Solids|+|Biomass (EJ/yr)"])),
                              "FE|Buildings|Solids|Biomass|+|Traditional (EJ/yr)"))
   out <- mbind(out, setNames(out[, , "FE|Solids|Biomass|+|Traditional (EJ/yr)"] -

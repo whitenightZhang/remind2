@@ -185,7 +185,7 @@ remFilter <- remFilter[, , c("New Cap|Electricity|Hydro", "Cap|Electricity|Hydro
   )
   remindProd <- remindProd[regions, getYears(x), vars] # period >2010 and only select variables
 
-  pe <- reportPE(gdx)[regions, getYears(x), "PE|Biomass|Traditional (EJ/yr)"]
+  pe <- reportPE(gdx)[regions, getYears(x), "PE|Biomass|++++|Traditional (EJ/yr)"]
 
   # removing the traditional biomass component, where biomass isn't sold, thus no employment
   # in conventional sense

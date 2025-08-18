@@ -203,14 +203,44 @@ vars <- intersect(paste0("Price|Final Energy|Transport|", carriers, "|Rawdata"),
 walk(vars, showLinePlots, data = dPrice, scale = "fixed")
 ```
 
+### SE Imports Prices
+
+```{r SE Imports Prices}
+vars <-
+  levels(data$variable) %>%
+  str_subset("^Trade\\|Price\\|Imports\\|SE\\|")
+walk(vars, showLinePlots, data = data)
+```
+
+### SE Exports Trade
+
+```{r SE Exports Trade}
+vars <-
+  levels(data$variable) %>%
+  str_subset("^Trade\\|Price\\|Exports\\|SE\\|")
+walk(vars, showLinePlots, data = data)
+```
+
 ## Trade
 
-```{r Trade}
+### PE Trade
+
+```{r PE Trade}
 vars <-
   levels(data$variable) %>%
   str_subset("^Trade\\|(Uranium.)?[^|]*$")
 walk(vars, showLinePlots, data = data)
 ```
+
+### SE Trade
+
+```{r SE Trade}
+vars <-
+  levels(data$variable) %>%
+  str_subset("^Trade\\|SE\\|")
+walk(vars, showLinePlots, data = data)
+```
+
 
 ## FE intensity of GDP_PPP
 ### area plot

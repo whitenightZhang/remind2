@@ -48,6 +48,8 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
     output <- mbind(output, reportExtraction(gdx, regionSubsetList = regionSubsetList, t = t))
     message("- reportMacroEconomy")
     output <- mbind(output, reportMacroEconomy(gdx, regionSubsetList = regionSubsetList, t = t)[, getYears(output), ])
+    message("- reportTrade")
+    output <- mbind(output, reportTrade(gdx, regionSubsetList = regionSubsetList, t = t)[, getYears(output), ])
   }
   output[is.na(output)] <- 0     # substitute na by 0
   output <- deletePlus(output)   # delete "+" and "++" from variable names
@@ -62,6 +64,8 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
   s_twa2mwh <- readGDX(gdx, "sm_TWa_2_MWh", format = "first_found", reacht = "silent")
   tdptwyr2dpgj <- 31.71   # TerraDollar per TWyear to Dollar per GJ
   p80_subset   <- c("perm", "good", "peur", "peoil", "pegas", "pecoal", "pebiolc") # TODO: read in from gdx as sets trade
+  s_tBC_2_TWa <- readGDX(gdx, name = "sm_tBC_2_TWa", format = "first_found", react = "silent")
+  sm_trillion_2_non <- readGDX(gdx, "sm_trillion_2_non", format = "first_found", react = "silent")
   ####### read in needed data #########
 
   #---- Functions
@@ -75,6 +79,8 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
   bio_tax_factor <- readGDX(gdx, name = "p21_tau_bioenergy_tax", format = "first_found", react = "silent")[, t, ]
   if (is.null(bio_tax_factor)) bio_tax_factor <- readGDX(gdx, name = "v21_tau_bio", field = "l", format = "first_found")[, t, ]
   pm_pvp         <- readGDX(gdx, name = c("pm_pvp", "p80_pvp"), format = "first_found")[, t, p80_subset]
+  pm_MPortsPrice <- readGDX(gdx, name=c("pm_MPortsPrice"), format = "first_found")[, t, ]
+  pm_XPortsPrice <- readGDX(gdx, name=c("pm_XPortsPrice"), format = "first_found")[, t, ]
   pm_taxCO2eq    <- readGDX(gdx, name = c("pm_taxCO2eq", "pm_tau_CO2_tax"), format = "first_found")[, t, ]
   pm_taxCO2eqSum <- readGDX(gdx, name = "pm_taxCO2eqSum", format = "first_found")[, t, ]
   pm_taxCO2eqSCC <- readGDX(gdx, name = "pm_taxCO2eqSCC", format = "first_found")[, t, ]
@@ -83,6 +89,8 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
   pm_taxemiMkt   <- readGDX(gdx, name = "pm_taxemiMkt", format = "first_found", react = "silent")[, t, ]
   p47_taxCO2eq_AggFE <- readGDX(gdx, name = "p47_taxCO2eq_AggFE", format = "first_found", react = "silent")[, t, ]
   p47_taxCO2eq_SectorAggFE <- readGDX(gdx, name = "p47_taxCO2eq_SectorAggFE", format = "first_found", react = "silent")[, t, ]
+  p33_BiocharPrice <- readGDX(gdx, "p33_BiocharPrice", field = "l", format = "first_found", react = "silent")[, t, ]
+
   ## variables
   pric_emu       <- readGDX(gdx, name = "vm_pebiolc_price", field = "l", format = "first_found")[, t, ]
 
@@ -442,6 +450,33 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
     }
   }
 
+  ## SE Trade Prices
+  out <- mbind(out,
+               setNames(mselect(pm_MPortsPrice, all_enty = "seel") * tdptwyr2dpgj,
+                        "Trade|Price|Imports|SE|Electricity (US$2017/GJ)"),
+               setNames(mselect(pm_MPortsPrice, all_enty = "seh2") * tdptwyr2dpgj,
+                        "Trade|Price|Imports|SE|Hydrogen (US$2017/GJ)"),
+               setNames(mselect(pm_MPortsPrice, all_enty = "sesobio") * tdptwyr2dpgj,
+                        "Trade|Price|Imports|SE|Liquids|Biomass (US$2017/GJ)"),
+               setNames(mselect(pm_MPortsPrice, all_enty = "seliqsyn") * tdptwyr2dpgj,
+                        "Trade|Price|Imports|SE|Liquids|Hydrogen (US$2017/GJ)"),
+               setNames(mselect(pm_MPortsPrice, all_enty = "segasyn") * tdptwyr2dpgj,
+                        "Trade|Price|Imports|SE|Gases|Hydrogen (US$2017/GJ)")
+  )
+
+  out <- mbind(out,
+               setNames(mselect(pm_XPortsPrice, all_enty = "seel") * tdptwyr2dpgj,
+                        "Trade|Price|Exports|SE|Electricity (US$2017/GJ)"),
+               setNames(mselect(pm_XPortsPrice, all_enty = "seh2") * tdptwyr2dpgj,
+                        "Trade|Price|Exports|SE|Hydrogen (US$2017/GJ)"),
+               setNames(mselect(pm_XPortsPrice, all_enty = "sesobio") * tdptwyr2dpgj,
+                        "Trade|Price|Exports|SE|Liquids|Biomass (US$2017/GJ)"),
+               setNames(mselect(pm_XPortsPrice, all_enty = "seliqsyn") * tdptwyr2dpgj,
+                        "Trade|Price|Exports|SE|Liquids|Hydrogen (US$2017/GJ)"),
+               setNames(mselect(pm_XPortsPrice, all_enty = "segasyn") * tdptwyr2dpgj,
+                        "Trade|Price|Exports|SE|Gases|Hydrogen (US$2017/GJ)")
+  )
+
   ## detailed FE price calculations ----
 
   ### Transport and Distribution Cost ----
@@ -667,7 +702,7 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
                                   unitsplit(getNames(out.rawdata))$unit, ")")
 
   ## calculate reporting prices
-  out.reporting <- pmax(out, 0) # avoid negative prices
+  out.reporting <- base::pmax(out, 0) # avoid negative prices
 
   # for cm_startyear and non-SSP2, replace price by average of period before and after
   # this is a workaround to avoid spikes caused by https://github.com/remindmodel/remind/issues/1068
@@ -783,7 +818,7 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
       pm_taxCO2eqMport <- pm_taxCO2eqMport + dimSums(p21_tau_Import[, , "CO2taxmarkup"], dim = 3.2) * pm_taxCO2eqSum
     }
     if ("avCO2taxmarkup" %in% tax_import_type_21) {
-      pm_taxCO2eqMport <- pm_taxCO2eqMport + dimSums(p21_tau_Import[, , "avCO2taxmarkup"], dim = 3.2) * pmax(pm_taxCO2eqSum, magpie_expand(colMeans(pm_taxCO2eqSum), pm_taxCO2eqSum))
+      pm_taxCO2eqMport <- pm_taxCO2eqMport + dimSums(p21_tau_Import[, , "avCO2taxmarkup"], dim = 3.2) * base::pmax(pm_taxCO2eqSum, magpie_expand(colMeans(pm_taxCO2eqSum), pm_taxCO2eqSum))
     }
     pm_taxCO2eqMport <- pm_taxCO2eqMport * 1000 * 12 / 44
     # use unweighted average, because weighing according to import volumes might lead to big jumps
@@ -928,7 +963,18 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
                "Price|Final Energy|Industry|Gases (US$2017/GJ)"       = "FE|Industry|Gases (EJ/yr)",
                "Price|Final Energy|Industry|Hydrogen (US$2017/GJ)"       = "FE|Industry|Hydrogen (EJ/yr)",
                "Price|Final Energy|Industry|Heat (US$2017/GJ)"       = "FE|Industry|Heat (EJ/yr)",
-               "Price|Final Energy|Industry|Solids (US$2017/GJ)"       = "FE|Industry|Solids (EJ/yr)"
+               "Price|Final Energy|Industry|Solids (US$2017/GJ)"       = "FE|Industry|Solids (EJ/yr)",
+               
+               "Trade|Price|Imports|SE|Electricity (US$2017/GJ)"      = "Trade|Imports|SE|Electricity (EJ/yr)",
+               "Trade|Price|Imports|SE|Hydrogen (US$2017/GJ)"         = "Trade|Imports|SE|Hydrogen (EJ/yr)",
+               "Trade|Price|Imports|SE|Liquids|Biomass (US$2017/GJ)"  = "Trade|Imports|SE|Liquids|Biomass (EJ/yr)",
+               "Trade|Price|Imports|SE|Liquids|Hydrogen (US$2017/GJ)" = "Trade|Imports|SE|Liquids|Hydrogen (EJ/yr)",
+               "Trade|Price|Imports|SE|Gases|Hydrogen (US$2017/GJ)"   = "Trade|Imports|SE|Gases|Hydrogen (EJ/yr)",
+               "Trade|Price|Exports|SE|Electricity (US$2017/GJ)"      = "Trade|Exports|SE|Electricity (EJ/yr)",
+               "Trade|Price|Exports|SE|Hydrogen (US$2017/GJ)"         = "Trade|Exports|SE|Hydrogen (EJ/yr)",
+               "Trade|Price|Exports|SE|Liquids|Biomass (US$2017/GJ)"  = "Trade|Exports|SE|Liquids|Biomass (EJ/yr)",
+               "Trade|Price|Exports|SE|Liquids|Hydrogen (US$2017/GJ)" = "Trade|Exports|SE|Liquids|Hydrogen (EJ/yr)",
+               "Trade|Price|Exports|SE|Gases|Hydrogen (US$2017/GJ)"   = "Trade|Exports|SE|Gases|Hydrogen (EJ/yr)"
   )
 
   # transport-specific mappings depending on realization
@@ -1063,6 +1109,13 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
   out <- mbind(out, setNames(glob_price,                                       "Price|Coal|World Market (US$2017/GJ)"))
   for (i in getRegions(out)) glob_price[i, , ] <- pm_pvp[, , "pebiolc"] / pm_pvp[, , "good"] * tdptwyr2dpgj
   out <- mbind(out, setNames(glob_price,                                       "Price|Biomass|World Market (US$2017/GJ)"))
+
+  if (!is.null(s_tBC_2_TWa)){  # for backwards compatibility, to be removed with v360 (TD)
+    for (i in getRegions(out)) glob_price[i, , ] <- p33_BiocharPrice * s_tBC_2_TWa * sm_trillion_2_non # [trilUS$2017/TWa BC] * [TWa/t BC] * [TrilUSD/USD]
+    out <- mbind(out, setNames(glob_price,                              "Price|Biochar (US$2017/t Biochar)"))
+  } else {
+    out <- mbind(out, new.magpie(getRegions(out), getYears(out), "Price|Biochar (US$2017/t Biochar)", fill = NA))
+  }   
 
   ## special global prices
 

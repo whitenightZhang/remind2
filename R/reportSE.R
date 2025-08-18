@@ -31,6 +31,11 @@ reportSE <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 5), seq
 
   ####### conversion factors ##########
   TWa_2_EJ <- 3600 * 24 * 365 / 1e6
+  s_tBC_2_TWa <- readGDX(gdx, name = "sm_tBC_2_TWa", format = "first_found", react = "silent") # Biochar calorific value
+  if (is.null(s_tBC_2_TWa)){ 
+    s_tBC_2_TWa <- 1          # necessary to avoid division by zero for versions preceding biochar introduction; to be removed with v360 (TD)
+  }
+
   ####### read in needed data #########
   ## sets
   teChp     <- readGDX(gdx, "teChp") # technologies that produce seel as main output und sehe as secondary output
@@ -133,7 +138,8 @@ reportSE <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 5), seq
     get_prodSE(peBio, "seel", te = "bioigccc",   name = "SE|Electricity|Biomass|++|Gasification Combined Cycle w/ CC (EJ/yr)"),
     get_prodSE(peBio, "seel", te = "bioigcc",    name = "SE|Electricity|Biomass|++|Gasification Combined Cycle w/o CC (EJ/yr)"),
     get_prodSE(peBio, "seel", te = "biochp",     name = "SE|Electricity|Biomass|++|Combined Heat and Power w/o CC (EJ/yr)"),
-    get_prodSE(peBio, "seel", te = setdiff(pe2se$all_te, c("bioigccc", "bioigcc", "biochp")),
+    get_prodSE(peBio, "seel", te = c("biopyrchp"),   name = "SE|Electricity|Biomass|++|Pyrolysis (EJ/yr)"),
+    get_prodSE(peBio, "seel", te = setdiff(pe2se$all_te, c("bioigccc", "bioigcc", "biochp", "biopyrchp")),
                                                  name = "SE|Electricity|Biomass|++|Other (EJ/yr)"),
 
     get_prodSE("pecoal", "seel",                 name = "SE|Electricity|+|Coal (EJ/yr)"),
@@ -229,7 +235,9 @@ reportSE <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 5), seq
     get_prodSE( entyPe, "sehe", te = teChp,      name = "SE|Heat|Combined Heat and Power (EJ/yr)"),
     get_prodSE("pecoal", "sehe", te = "coalchp", name = "SE|Heat|Coal|Combined Heat and Power (EJ/yr)"),
     get_prodSE("pegas", "sehe", te = "gaschp",   name = "SE|Heat|Gas|Combined Heat and Power (EJ/yr)"),
-    get_prodSE( peBio, "sehe", te = "biochp",    name = "SE|Heat|Biomass|Combined Heat and Power (EJ/yr)")
+    get_prodSE( peBio, "sehe", te = "biochp",    name = "SE|Heat|Biomass|+|Combined Heat and Power (EJ/yr)"),
+    get_prodSE( peBio, "sehe", te = "biohp",     name = "SE|Heat|Biomass|+|Heat (EJ/yr)"),
+    get_prodSE( peBio, "sehe", te = c("biopyrchp", "biopyrhe"),    name = "SE|Heat|Biomass|+|Pyrolysis (EJ/yr)")
   )
 
   ## Hydrogen
@@ -266,6 +274,7 @@ reportSE <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 5), seq
     get_prodSE("pebios", seLiq,                 name = "SE|Liquids|Biomass|Conventional Ethanol (EJ/yr)"),
     get_prodSE(peBio, seLiq, "bioftcrec",       name = "SE|Liquids|Biomass|BioFTR|w/ CC (EJ/yr)"),
     get_prodSE(peBio, seLiq, "bioftrec",        name = "SE|Liquids|Biomass|BioFTR|w/o CC (EJ/yr)"),
+    get_prodSE(peBio, seLiq, "biopyrliq",       name = "SE|Liquids|Biomass|BioFTR|w/ pyrolysis (EJ/yr)"), 
     get_prodSE(peBio, seLiq, "biodiesel",       name = "SE|Liquids|Biomass|Biodiesel (EJ/yr)"),
     get_prodSE(peBio, seLiq, "bioethl",         name = "SE|Liquids|Biomass|Lignocellulosic Ethanol (EJ/yr)"),
     get_prodSE("pebioil", seLiq,                name = "SE|Liquids|Biomass|Non-Cellulosic|+|Oil-based (EJ/yr)"),
@@ -293,6 +302,31 @@ reportSE <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 5), seq
                                             name = "SE|Solids|+|Biomass (EJ/yr)"),
     get_prodSE(peBio, seSol, te = "biotr",  name = "SE|Solids|+|Traditional Biomass (EJ/yr)")
   )
+
+  ## Biochar
+  if("sebiochar" %in% entySe){  # for backwards compatibility, to be removed with v360 (TD)
+    out <- mbind(out,
+      get_prodSE(entyPe, "sebiochar",                    name = "SE|Biochar (EJ/yr)"),
+      get_prodSE(entyPe, "sebiochar", te = "biopyronly", name = "SE|Biochar|+|w/o co-product (EJ/yr)"),
+      get_prodSE(entyPe, "sebiochar", te = "biopyrhe",   name = "SE|Biochar|+|w/ heat (EJ/yr)"),
+      get_prodSE(entyPe, "sebiochar", te = "biopyrchp",  name = "SE|Biochar|+|w/ heat and power (EJ/yr)"),
+      get_prodSE(entyPe, "sebiochar", te = "biopyrliq",  name = "SE|Biochar|+|w/ liquids (EJ/yr)")
+    )} else {
+    out <- mbind(out,
+      setNames(new.magpie(getRegions(out), getYears(out), fill = 0), "SE|Biochar (EJ/yr)"),
+      setNames(new.magpie(getRegions(out), getYears(out), fill = 0), "SE|Biochar|+|w/o co-product (EJ/yr)"),
+      setNames(new.magpie(getRegions(out), getYears(out), fill = 0), "SE|Biochar|+|w/ heat (EJ/yr)"),
+      setNames(new.magpie(getRegions(out), getYears(out), fill = 0), "SE|Biochar|+|w/ heat and power (EJ/yr)"),
+      setNames(new.magpie(getRegions(out), getYears(out), fill = 0), "SE|Biochar|+|w/ liquids (EJ/yr)")
+    )}
+
+    out <- mbind(out,
+      setNames(out[, , "SE|Biochar (EJ/yr)"] / TWa_2_EJ / s_tBC_2_TWa * 10^-6, "SE|Biochar [Mt] (Mt/yr)"),
+      setNames(out[, , "SE|Biochar|+|w/o co-product (EJ/yr)"] / TWa_2_EJ / s_tBC_2_TWa / 10^6, "SE|Biochar [Mt]|+|w/o co-product (Mt/yr)"),
+      setNames(out[, , "SE|Biochar|+|w/ heat (EJ/yr)"] / TWa_2_EJ / s_tBC_2_TWa / 10^6, "SE|Biochar [Mt]|+|w/ heat (Mt/yr)"),
+      setNames(out[, , "SE|Biochar|+|w/ heat and power (EJ/yr)"] / TWa_2_EJ / s_tBC_2_TWa / 10^6, "SE|Biochar [Mt]|+|w/ heat and power (Mt/yr)"),
+      setNames(out[, , "SE|Biochar|+|w/ liquids (EJ/yr)"] / TWa_2_EJ / s_tBC_2_TWa / 10^6, "SE|Biochar [Mt]|+|w/ liquids (Mt/yr)")
+    )
 
   ## Trade
   if (module2realisation["trade", 2] == "se_trade") {

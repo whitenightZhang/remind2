@@ -63,6 +63,7 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
   stor         <- readGDX(gdx,c("teStor","stor"),format="first_found")
   grid         <- readGDX(gdx,c("teGrid","grid"),format="first_found")
   trade_pe     <- readGDX(gdx,c("tradePe","trade_pe"),format="first_found")
+  trade_se     <- readGDX(gdx,"tradeSe")
   perenew      <- readGDX(gdx,c("peRe","perenew"),format="first_found")
   petyf        <- readGDX(gdx,c("peFos","petyf"),format="first_found")
   sety         <- readGDX(gdx,c("entySe","sety"),format="first_found")
@@ -86,6 +87,8 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
     pm_petradecost2_Mp_fin  <- readGDX(gdx,name="pm_costsTradePeFinancial",format="first_found")
     pm_petradecost2_Mp_fin  <- collapseNames(pm_petradecost2_Mp_fin[,,"Mport"])
   }
+  pm_MPortsPrice         <- readGDX(gdx,name=c("pm_MPortsPrice"),format = "first_found")
+  pm_XPortsPrice         <- readGDX(gdx,name=c("pm_XPortsPrice"),format = "first_found")
   p_dataeta              <- readGDX(gdx,name=c("pm_dataeta","p_dataeta"),format="first_found")
   pm_pvp                 <- readGDX(gdx,name=c("pm_pvp"),format = "first_found")
   cost_emu_pre           <- readGDX(gdx,name="p30_pebiolc_costs_emu_preloop",format="first_found")
@@ -162,6 +165,8 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
   vm_fuelex        <- vm_fuelex[,y,]
   Xport            <- Xport[,y,]
   Mport            <- Mport[,y,]
+  pm_MPortsPrice   <- pm_MPortsPrice[,y,]
+  pm_XPortsPrice   <- pm_XPortsPrice[,y,]
   vm_costfu_ex     <- vm_costfu_ex[,y,]
   v_costfu         <- v_costfu[,y,]
   v_costom         <- v_costom[,y,]
@@ -292,11 +297,13 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
   # v_costfu: these costs are the total fuel extraction costs, even the ones for export
   # Supply costs: exports valued at supply cost (else the ESM costs would be greatly underestimated for a resource-exporting country that makes large profits from the export), except for biomass where supply costs are not yet reported
   cost <- v_costfu * 1000 - setNames(output[regi_on_gdx,,"Res|Average Supply Costs|Coal ($/GJ)"] * Xport[,,"pecoal"]  * pm_conv_TWa_EJ,NULL) -
-                            setNames(output[regi_on_gdx,,"Res|Average Supply Costs|Gas ($/GJ)"]       * Xport[,,"pegas"]   * pm_conv_TWa_EJ,NULL) -
-                            setNames(output[regi_on_gdx,,"Res|Average Supply Costs|Oil ($/GJ)"]       * Xport[,,"peoil"]   * pm_conv_TWa_EJ,NULL) -
+                            setNames(output[regi_on_gdx,,"Res|Average Supply Costs|Gas ($/GJ)"]  * Xport[,,"pegas"]   * pm_conv_TWa_EJ,NULL) -
+                            setNames(output[regi_on_gdx,,"Res|Average Supply Costs|Oil ($/GJ)"]  * Xport[,,"peoil"]   * pm_conv_TWa_EJ,NULL) -
                             setNames(output[regi_on_gdx,,"Price|Primary Energy|Biomass|Modern|Rawdata (US$2017/GJ)"]  * Xport[,,"pebiolc"] * pm_conv_TWa_EJ,NULL) -
-                            setNames(output[regi_on_gdx,,"Res|Average Supply Costs|Uranium ($/GJ)"]   * Xport[,,"peur"]    * pm_conv_TWa_EJ * 4.43,NULL) +
-                            dimSums(Mport[,,trade_pe] * pebal.m[,,trade_pe] / (budget.m + 1.e-10), dim=3,na.rm=T) * 1000 # imports valued with domestic market price
+                            setNames(output[regi_on_gdx,,"Res|Average Supply Costs|Uranium ($/GJ)"] * Xport[,,"peur"] * pm_conv_TWa_EJ * 4.43,NULL) -
+                            dimSums(pm_XPortsPrice[,,trade_se] * Xport[,,trade_se], dim=3,na.rm=T) * 1000 +
+                            dimSums(Mport[,,trade_pe] * pebal.m[,,trade_pe] / (budget.m + 1.e-10), dim=3,na.rm=T) * 1000 + # imports valued with domestic market price
+                            dimSums(pm_MPortsPrice[,,trade_se] * Mport[,,trade_se], dim=3,na.rm=T) * 1000
 
   tmp  <- mbind(tmp,setNames(cost, "Fuel costs for own ESM (billion US$2017/yr)"))
 
@@ -347,6 +354,10 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
   #######################################
   ########## Energy System costs ########
   #######################################
+
+  tmp  <- mbind(tmp,setNames(v_costin*1000,"Energy System Cost|Supply|Investments (billion US$2017/yr)"))
+  tmp  <- mbind(tmp,setNames(v_costom*1000,"Energy System Cost|Supply|Operation and Maintenance Cost (billion US$2017/yr)"))
+  tmp  <- mbind(tmp,setNames(tmp[,,"Fuel costs for own ESM (billion US$2017/yr)"],"Energy System Cost|Supply|Fuel Cost (billion US$2017/yr)"))
 
   cost <- (v_costin + v_costom) * 1000 + tmp[,,"Fuel costs for own ESM (billion US$2017/yr)"]
   tmp  <- mbind(tmp,setNames(cost,"Energy system costs (billion US$2017/yr)"))
@@ -524,6 +535,11 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
   cost <- op_costs(ei=perenew,eo=se_Liq,te=pe2se$all_te,e2e=pe2se,teall2rlf=teall2rlf,vm_prodE=vm_prodSe,pm_data=pm_data,vm_cap=vm_cap,v_investcost=v_investcost)
   tmp  <- mbind(tmp,setNames(cost + output[regi_on_gdx,,"Energy Investments|Liquids|Bio (billion US$2017/yr)"], "Total Energy costs|Liquids|Bio (billion US$2017/yr)"))
 
+  ##### Biochar
+  # including investments, and operation and maintenance, BUT excluding input fuel costs
+  cost <- op_costs(ei="pebiolc",eo="sebiochar",te=pe2se$all_te,e2e=pe2se,teall2rlf=teall2rlf,vm_prodE=vm_prodSe,pm_data=pm_data,vm_cap=vm_cap,v_investcost=v_investcost)
+  tmp  <- mbind(tmp,setNames(cost + output[regi_on_gdx,,"Energy Investments|Biochar (billion US$2017/yr)"], "Total Energy costs|+|Biochar (billion US$2017/yr)"))
+
   ##### CO2 Trans&Stor
   cost <- op_costs(ei=ccs2te$all_enty,eo=ccs2te$all_enty1,te=ccs2te$all_te,e2e=ccs2te,teall2rlf=teall2rlf,vm_prodE=NULL,pm_data=pm_data,vm_cap=vm_cap,v_investcost=v_investcost)
   tmp  <- mbind(tmp,setNames(cost + output[regi_on_gdx,,"Energy Investments|CO2 Trans&Stor (billion US$2017/yr)"], "Total Energy costs|+|CO2 Trans&Stor (billion US$2017/yr)"))
@@ -534,6 +550,7 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
                                tmp[,,"Total Energy costs|+|Hydrogen (billion US$2017/yr)"]-
                                tmp[,,"Total Energy costs|+|Liquids (billion US$2017/yr)"]-
                                tmp[,,"Total Energy costs|+|Heat (billion US$2017/yr)"]-
+                               tmp[,,"Total Energy costs|+|Biochar (billion US$2017/yr)"]-
                                tmp[,,"Total Energy costs|+|CO2 Trans&Stor (billion US$2017/yr)"],
                              "Total Energy costs|+|Other (billion US$2017/yr)"))
 
@@ -583,6 +600,10 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
   cost1 <- op_costs(ei="pebiolc",eo="seel",te=teccs,e2e=pe2se,teall2rlf=teall2rlf,vm_prodE=vm_prodSe,pm_data=pm_data,vm_cap=vm_cap,v_investcost=v_investcost)
   cost2 <- price_pebiolc * op_costs_part2_bio_nuc(pe="pebiolc",se="seel",te=teccs,vm_prodSe,pe2se,p_dataeta,pm_conv_TWa_EJ)
   tmp  <- mbind(tmp,setNames(cost1+cost2, "Operational costs|Electricity|Biomass|w/ CC (billion US$2017/yr)"))
+
+  cost1 <- op_costs(ei="pebiolc",eo="sebiochar",te=tenoccs,e2e=pe2se,teall2rlf=teall2rlf,vm_prodE=vm_prodSe,pm_data=pm_data,vm_cap=vm_cap,v_investcost=v_investcost)
+  cost2 <- price_pebiolc * op_costs_part2_bio_nuc(pe="pebiolc",se="sebiochar",te=tenoccs,vm_prodSe,pe2se,p_dataeta,pm_conv_TWa_EJ)
+  tmp  <- mbind(tmp,setNames(cost1+cost2, "Operational costs|Biochar (billion US$2017/yr)"))
 
   ##### Nuclear
   cost1 <- op_costs(ei="peur",eo="seel",te="tnrs",e2e=pe2se,teall2rlf=teall2rlf,vm_prodE=vm_prodSe,pm_data=pm_data,vm_cap=vm_cap,v_investcost=v_investcost)

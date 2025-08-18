@@ -224,6 +224,7 @@ grades[is.na(grades)] <- 0
     setNames(calcAvgSupplyCosts("peoil",  fuelex, costfu_ex) * 1000, "Res|Average Supply Costs|Oil ($/GJ)"),
     setNames(calcAvgSupplyCosts("pegas",  fuelex, costfu_ex) * 1000, "Res|Average Supply Costs|Gas ($/GJ)"),
     setNames(calcAvgSupplyCosts("peur",   fuelex, costfu_ex) * 1000, "Res|Average Supply Costs|Uranium ($/GJ)"))
+  tmp3[is.na(tmp3)] <- 0
 
   # Biomass prod. (Energy crops)
   tmp4 <- NULL

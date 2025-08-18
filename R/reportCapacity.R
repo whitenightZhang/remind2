@@ -70,12 +70,12 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
   v_earlyreti <-   v_earlyreti[, ttot, ]
   t2005 <- ttot[ttot > 2004]
 
-  ####### fix negative values of dataoc to 0 - using the lines from reportSE.R ##################
-  #### adjust regional dimension of dataoc
-  dataoc <- new.magpie(getRegions(vm_cap), getYears(pm_prodCouple), magclass::getNames(pm_prodCouple), fill = 0)
-  dataoc[getRegions(pm_prodCouple), , ] <- pm_prodCouple
-  getSets(dataoc) <- getSets(pm_prodCouple)
-  dataoc[dataoc < 0] <- 0
+  ####### fix negative values of prodCouple to 0 - using the lines from reportSE.R ##################
+  #### adjust regional dimension of prodCouple
+  prodCouple <- new.magpie(getRegions(vm_cap), getYears(pm_prodCouple), magclass::getNames(pm_prodCouple), fill = 0)
+  prodCouple[getRegions(pm_prodCouple), , ] <- pm_prodCouple
+  getSets(prodCouple) <- getSets(pm_prodCouple)
+  prodCouple[prodCouple < 0] <- 0
 
   ####### internal function for reporting ###########
   # this function is just a shortcut for setNames(dimSums(vm_cap ...))
@@ -110,7 +110,11 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
       get_cap(c("igcc", "pc", "coalchp", "igccc"), "|Electricity|+|Coal"),
       get_cap("dot",                               "|Electricity|+|Oil"),
       get_cap(c("ngcc", "ngt", "gaschp", "ngccc"), "|Electricity|+|Gas"),
-      get_cap(c("bioigccc", "biochp", "bioigcc"),  "|Electricity|+|Biomass"),
+      if("biopyrchp" %in% getNames(gms_data, dim=1)){  # for backwards compatibility, to be removed with v360 (TD)
+        setNames(dimSums(gms_data[, , c("bioigccc", "biochp", "bioigcc")], dim = 3) 
+          + dimSums(gms_data[, , c("biopyrchp")] * prodCouple[, , "pebiolc.sebiochar.biopyrchp.seel"], dim = 3, na.rm = TRUE), 
+          full_name("|Electricity|+|Biomass")) 
+      } else {get_cap(c("bioigccc", "biochp", "bioigcc"), "|Electricity|+|Biomass")},
       get_cap(c("tnrs", "fnrs"),                   "|Electricity|+|Nuclear")
     )
   
@@ -140,7 +144,12 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
       get_cap("gaschp",                         "|Electricity|Gas|CHP"),
       get_cap("ngt",                            "|Electricity|Gas|GT"),
       get_cap(c("bioigccc"),                    "|Electricity|Biomass|w/ CC"),
-      get_cap(c("biochp", "bioigcc"),           "|Electricity|Biomass|w/o CC"),
+      if("biopyrchp" %in% getNames(gms_data, dim=1)){  # for backwards compatibility, to be removed with v360 (TD)
+        setNames(dimSums(gms_data[, , c("biochp", "bioigcc")], dim = 3) 
+              + dimSums(gms_data[, , c("biopyrchp")] * prodCouple[, , "pebiolc.sebiochar.biopyrchp.seel"], dim = 3, na.rm = TRUE), 
+                                      full_name("|Electricity|Biomass|w/o CC"))
+      } else {
+        get_cap(c("biochp", "bioigcc"),         "|Electricity|Biomass|w/o CC")},
       get_cap("biochp",                         "|Electricity|Biomass|CHP"),
       get_cap(c("biochp", "gaschp", "coalchp"), "|Electricity|CHP"),
       get_cap("spv",                            "|Electricity|Solar|+|PV"),
@@ -186,11 +195,17 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
       get_cap("solhe", "|Heat|+|Solar"),
       get_cap("geohe", "|Heat|+|Electricity|Heat Pump"),
       setNames(dimSums(gms_data[, , c("coalhp")], dim = 3)
-            + dimSums(gms_data[, , c("coalchp")] * dataoc[, , "pecoal.seel.coalchp.sehe"], dim = 3, na.rm = TRUE), full_name("|Heat|+|Coal")),
-      setNames(dimSums(gms_data[, , c("biohp")], dim = 3)
-            + dimSums(gms_data[, , c("biochp")] * dataoc[, , "pebiolc.seel.biochp.sehe"], dim = 3, na.rm = TRUE),  full_name("|Heat|+|Biomass")),
+            + dimSums(gms_data[, , c("coalchp")] * prodCouple[, , "pecoal.seel.coalchp.sehe"], dim = 3, na.rm = TRUE), full_name("|Heat|+|Coal")),
+      if("biopyrhe" %in% getNames(gms_data, dim=1)){  # for backwards compatibility, to be removed with v360 (TD)
+        setNames(dimSums(gms_data[, , c("biohp")], dim = 3) 
+            + dimSums(gms_data[, , c("biochp")] * prodCouple[, , "pebiolc.seel.biochp.sehe"], dim = 3, na.rm = TRUE)
+            + dimSums(gms_data[, , c("biopyrhe")] * prodCouple[, , "pebiolc.sebiochar.biopyrhe.sehe"], dim = 3, na.rm = TRUE)
+            + dimSums(gms_data[, , c("biopyrchp")] * prodCouple[, , "pebiolc.sebiochar.biopyrchp.sehe"], dim = 3, na.rm = TRUE), full_name("|Heat|+|Biomass"))
+        } else {setNames(dimSums(gms_data[, , c("biohp")], dim = 3)
+            + dimSums(gms_data[, , c("biochp")] * prodCouple[, , "pebiolc.seel.biochp.sehe"], dim = 3, na.rm = TRUE), full_name("|Heat|+|Biomass")) 
+            },
       setNames(dimSums(gms_data[, , c("gashp")], dim = 3)
-            + dimSums(gms_data[, , c("gaschp")] * dataoc[, , "pegas.seel.gaschp.sehe"], dim = 3, na.rm = TRUE),    full_name("|Heat|+|Gas"))
+            + dimSums(gms_data[, , c("gaschp")] * prodCouple[, , "pegas.seel.gaschp.sehe"], dim = 3, na.rm = TRUE),    full_name("|Heat|+|Gas"))
     )
     cap_heat <- mbind(cap_heat, setNames(dimSums(cap_heat, dim = 3), full_name("|Heat"))) # sum of the above
 
@@ -208,7 +223,12 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
       get_cap(c("coalftrec", "coalftcrec"),                                  "|Liquids|+|Coal"),
       get_cap(c("refliq"),                                                   "|Liquids|+|Oil"),
       get_cap(c("gasftrec", "gasftcrec"),                                    "|Liquids|+|Gas"),
-      get_cap(c("bioftrec", "bioftcrec", "biodiesel", "bioeths", "bioethl"), "|Liquids|+|Biomass"),
+      if("biopyrliq" %in% getNames(gms_data, dim=1)){ # for backwards compatibility, to be removed with v360 (TD)
+          setNames(dimSums(gms_data[, , c("bioftrec", "bioftcrec", "biodiesel", "bioeths", "bioethl")], dim = 3)
+              + dimSums(gms_data[, , c("biopyrliq")] * prodCouple[, , "pebiolc.sebiochar.biopyrliq.seliqbio"], dim = 3, na.rm = TRUE), 
+              full_name("|Liquids|+|Biomass"))
+             } else {
+         get_cap(c("bioftrec", "bioftcrec", "biodiesel", "bioeths", "bioethl"), "|Liquids|+|Biomass")},
       get_cap(c("MeOH"),                                                     "|Liquids|+|Hydrogen")
     )
     cap_liquids <- mbind(cap_liquids, setNames(dimSums(cap_liquids, dim = 3), full_name("|Liquids"))) # sum of the above
@@ -224,9 +244,20 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
       get_cap(c("biotr", "biotrmod"), "|Solids|+|Biomass")
     )
     cap_solids <- mbind(cap_solids, setNames(dimSums(cap_solids, dim = 3), full_name("|Solids"))) # sum of the above
+    
+    # biochar
+    if("biopyronly" %in% getNames(gms_data, dim=1)){ # for backwards compatibility, to be removed with v360 (TD)
+      s_tBC_2_TWa <- readGDX(gdx, name = "sm_tBC_2_TWa", format = "first_found", react = "silent") # Biochar calorific value
+      factor_biochar <- 1 / (s_tBC_2_TWa * 10^6 * 10^3) # 1 / ([TWa/t BC] * 10^6 [t BC/ Mt BC] * 10^3 [GW/TW]) = 1 / [GWa/MtBC] = [Mt BC/ GWa]
+      unit_biochar <- ifelse(prefix == "Cap", " (Mt Biochar/yr)", " (Mt Biochar/yr/yr)") # finding the relevant unit
 
+      cap_biochar <- setNames(dimSums(gms_data[, , c("biopyronly", "biopyrhe", "biopyrchp", "biopyrliq")], dim = 3) * 
+                                    factor_biochar, paste0(prefix,"|Biochar", unit_biochar))
+    } else { 
+    cap_biochar <- magclass::new.magpie(getRegions(gms_data), getYears(gms_data), full_name("|Biochar"), fill = 0)
+    }
 
-    reported_cap <- mbind(cap_electricity, cap_storage, cap_hydrogen, cap_heat, cap_gas, cap_liquids, cap_solids)
+    reported_cap <- mbind(cap_electricity, cap_storage, cap_hydrogen, cap_heat, cap_gas, cap_liquids, cap_solids, cap_biochar)
 
     # carbon management
     if ("dac" %in% magclass::getNames(gms_data, dim = 1)) {
@@ -293,9 +324,10 @@ reportCapacity <- function(gdx, regionSubsetList = NULL,
     magclass::getNames(reported_cumul),
     ifelse(
       grepl("Cumulative Cap\\|Carbon Management", magclass::getNames(reported_cumul)),
-      " (Mt CO2/yr)", 
-      " (GW)"
-    )
+      " (Mt CO2/yr)",
+      ifelse(grepl("Cumulative Cap\\|Biochar", magclass::getNames(reported_cumul)),
+      " (Mt Biochar/yr)",
+      " (GW)"))
   )
 
 
