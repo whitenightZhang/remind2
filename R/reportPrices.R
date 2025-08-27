@@ -702,7 +702,7 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
                                   unitsplit(getNames(out.rawdata))$unit, ")")
 
   ## calculate reporting prices
-  out.reporting <- base::pmax(out, 0) # avoid negative prices
+  out.reporting <- pmax(out, 0) # avoid negative prices
 
   # for cm_startyear and non-SSP2, replace price by average of period before and after
   # this is a workaround to avoid spikes caused by https://github.com/remindmodel/remind/issues/1068
@@ -818,7 +818,7 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
       pm_taxCO2eqMport <- pm_taxCO2eqMport + dimSums(p21_tau_Import[, , "CO2taxmarkup"], dim = 3.2) * pm_taxCO2eqSum
     }
     if ("avCO2taxmarkup" %in% tax_import_type_21) {
-      pm_taxCO2eqMport <- pm_taxCO2eqMport + dimSums(p21_tau_Import[, , "avCO2taxmarkup"], dim = 3.2) * base::pmax(pm_taxCO2eqSum, magpie_expand(colMeans(pm_taxCO2eqSum), pm_taxCO2eqSum))
+      pm_taxCO2eqMport <- pm_taxCO2eqMport + dimSums(p21_tau_Import[, , "avCO2taxmarkup"], dim = 3.2) * pmax(pm_taxCO2eqSum, magpie_expand(colMeans(pm_taxCO2eqSum), pm_taxCO2eqSum))
     }
     pm_taxCO2eqMport <- pm_taxCO2eqMport * 1000 * 12 / 44
     # use unweighted average, because weighing according to import volumes might lead to big jumps
@@ -964,7 +964,7 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
                "Price|Final Energy|Industry|Hydrogen (US$2017/GJ)"       = "FE|Industry|Hydrogen (EJ/yr)",
                "Price|Final Energy|Industry|Heat (US$2017/GJ)"       = "FE|Industry|Heat (EJ/yr)",
                "Price|Final Energy|Industry|Solids (US$2017/GJ)"       = "FE|Industry|Solids (EJ/yr)",
-               
+
                "Trade|Price|Imports|SE|Electricity (US$2017/GJ)"      = "Trade|Imports|SE|Electricity (EJ/yr)",
                "Trade|Price|Imports|SE|Hydrogen (US$2017/GJ)"         = "Trade|Imports|SE|Hydrogen (EJ/yr)",
                "Trade|Price|Imports|SE|Liquids|Biomass (US$2017/GJ)"  = "Trade|Imports|SE|Liquids|Biomass (EJ/yr)",
@@ -1115,7 +1115,7 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
     out <- mbind(out, setNames(glob_price,                              "Price|Biochar (US$2017/t Biochar)"))
   } else {
     out <- mbind(out, new.magpie(getRegions(out), getYears(out), "Price|Biochar (US$2017/t Biochar)", fill = NA))
-  }   
+  }
 
   ## special global prices
 

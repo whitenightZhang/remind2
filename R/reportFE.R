@@ -1226,7 +1226,7 @@ reportFE <- function(gdx, regionSubsetList = NULL,
   # split sectoral biomass in modern and traditional for exogains
   # allocate tradional biomass to buildings first and only consider industry if
   # all biomass in buildings is traditional. All fossil solids are coal.
-  out <- mbind(out, setNames(asS4(base::pmin(out[, , "FE|Solids|Biomass|+|Traditional (EJ/yr)"],
+  out <- mbind(out, setNames(asS4(pmin(out[, , "FE|Solids|Biomass|+|Traditional (EJ/yr)"],
                                        out[, , "FE|Buildings|Solids|+|Biomass (EJ/yr)"])),
                              "FE|Buildings|Solids|Biomass|+|Traditional (EJ/yr)"))
   out <- mbind(out, setNames(out[, , "FE|Solids|Biomass|+|Traditional (EJ/yr)"] -
