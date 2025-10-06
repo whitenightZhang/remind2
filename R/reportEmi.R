@@ -2227,6 +2227,13 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
   getSets(EmiMAC) <- c("region", "year", "macsector", "sector", "emiMkt", "gas") # rename dimensions for sake of understanding
   EmiMAC[, , mac.map$all_enty] <- vm_emiMacSector[, , mac.map$all_enty]
 
+  # Backwards compatibility: Will be removed from remind2 with Release 3.5.2
+    if ("Waste" %in% getNames(EmiMAC, dim = "sector")) {
+      tmp <- getNames(EmiMAC, dim = "sector")
+      tmp <- gsub("\\bWaste\\b", "waste", tmp)
+      getNames(EmiMAC, dim = "sector") <- tmp
+    }
+
   ### 5.1 non-CO2 GHG by sector ----
 
   sel_vm_emiTeDetailMkt_ch4 <- if (getSets(vm_emiTeDetailMkt)[[6]] == "emiAll") {
@@ -2256,7 +2263,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     setNames(dimSums(mselect(EmiMAC, sector = "Agriculture", gas = "ch4"), dim = 3),
              "Emi|CH4|+|Agriculture (Mt CH4/yr)"),
     # waste CH4 emissions in MtCH4
-    setNames(dimSums(mselect(EmiMAC, sector = "Waste", gas = "ch4"), dim = 3),
+    setNames(dimSums(mselect(EmiMAC, sector = "waste", gas = "ch4"), dim = 3),
              "Emi|CH4|+|Waste (Mt CH4/yr)"),
     # land-use change CH4 emissions in MtCH4
     setNames(dimSums(mselect(EmiMAC, sector = "lulucf", gas = "ch4"), dim = 3),
@@ -2310,7 +2317,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     setNames(dimSums(mselect(EmiMAC, sector = "lulucf", gas = "n2o"), dim = 3) * MtN2_to_ktN2O,
              "Emi|N2O|+|Land-Use Change (kt N2O/yr)"),
     # Waste N2O emissions in kt N2O
-    setNames(dimSums(mselect(EmiMAC, sector = "Waste", gas = "n2o"), dim = 3) * MtN2_to_ktN2O,
+    setNames(dimSums(mselect(EmiMAC, sector = "waste", gas = "n2o"), dim = 3) * MtN2_to_ktN2O,
              "Emi|N2O|+|Waste (kt N2O/yr)"),
     # Transport N2O emissions in kt N2O
     setNames(dimSums(mselect(EmiMAC, sector = "trans", gas = "n2o"), dim = 3) * MtN2_to_ktN2O,
@@ -2380,7 +2387,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     setNames(dimSums(mselect(EmiMACEq, sector = "Agriculture", gas = "ch4"), dim = 3),
              "Emi|GHG|CH4|+|Agriculture (Mt CO2eq/yr)"),
     # waste CH4 emissions in Mt CO2eq
-    setNames(dimSums(mselect(EmiMACEq, sector = "Waste", gas = "ch4"), dim = 3),
+    setNames(dimSums(mselect(EmiMACEq, sector = "waste", gas = "ch4"), dim = 3),
              "Emi|GHG|CH4|+|Waste (Mt CO2eq/yr)"),
     # land-use change CH4 emissions in Mt CO2eq
     setNames(dimSums(mselect(EmiMACEq, sector = "lulucf", gas = "ch4"), dim = 3),
@@ -2395,7 +2402,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     setNames(dimSums(mselect(EmiMACEq, sector = "Agriculture", gas = "n2o"), dim = 3),
              "Emi|GHG|N2O|+|Agriculture (Mt CO2eq/yr)"),
     # Waste N2O emissions in Mt CO2eq
-    setNames(dimSums(mselect(EmiMACEq, sector = "Waste", gas = "n2o"), dim = 3),
+    setNames(dimSums(mselect(EmiMACEq, sector = "waste", gas = "n2o"), dim = 3),
              "Emi|GHG|N2O|+|Waste (Mt CO2eq/yr)"),
     # land-use change N2O emissions in Mt CO2eq
     setNames(dimSums(mselect(EmiMACEq, sector = "lulucf", gas = "n2o"), dim = 3),
@@ -2735,7 +2742,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
                         "Emi|GHG|ETS|+|Industry (Mt CO2eq/yr)"),
 
                setNames(
-                        dimSums(mselect(EmiMACEq[, , "ETS"], sector = "Waste"), dim = 3),
+                        dimSums(mselect(EmiMACEq[, , "ETS"], sector = "waste"), dim = 3),
                         "Emi|GHG|ETS|+|Waste (Mt CO2eq/yr)"))
 
   #### 6.3.2 ESR Emissions ----
@@ -2803,7 +2810,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     # + Waste CO2 emissions from non-incinerated plastics (not accounted as energy emissions)
     # + Waste CO2 emissions from non-plastics
     setNames(
-             dimSums(mselect(EmiMACEq[, , "ES"], sector = "Waste"), dim = 3)
+             dimSums(mselect(EmiMACEq[, , "ES"], sector = "waste"), dim = 3)
              + dimSums(mselect(vm_emiNonFosNonIncineratedPlastics * GtC_2_MtCO2,
                                all_enty = "co2"), dim = 3)
              + dimSums(mselect(v37_emiNonPlasticWaste  * GtC_2_MtCO2,

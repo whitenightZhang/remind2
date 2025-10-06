@@ -9,7 +9,6 @@
 #' @author Gabriel Abrahão, Falk Benke
 #' @export
 reportExtraEmissions <- function(mif, extraData, gdx) {
-
   # Define region subsets ----
   regionSubsetList <- toolRegionSubsets(gdx)
 
@@ -27,7 +26,16 @@ reportExtraEmissions <- function(mif, extraData, gdx) {
     "FE|Buildings|Gases|Fossil",
     "FE|Buildings|Gases",
     "FE|Buildings|Liquids",
-    "FE|Buildings|Solids"
+    "FE|Buildings|Solids",
+
+    # Use net CO2 emissions for aviation and shipping instead of tailpipe
+    # emissions as activity variables. Net CO2 emissions only include fossil
+    # fuel combustion, which seems more adequate for scaling airpollutants,
+    # since combustion of biofuels and synfuels has typically smaller
+    # airpollutant emissions per unit of CO2 emitted.
+    "Emi|CO2|Energy|Demand|Transport|Pass|Domestic Aviation",
+    "Emi|CO2|Energy|Demand|Transport|Bunkers|Pass|International Aviation",
+    "Emi|CO2|Energy|Demand|Transport|Bunkers|Freight|International Shipping"
   )
 
   report <- quitte::read.quitte(mif, check.duplicates = FALSE) %>%
@@ -52,32 +60,53 @@ reportExtraEmissions <- function(mif, extraData, gdx) {
     stop("Auxiliary file 'p_emissions4ReportExtraIAMC.cs4r' not found")
   }
 
+  # warning will be changed to stop with Release 3.5.2
+  if (!file.exists(file.path(extraData, "emi2020_sectNOGAINS_sourceCEDS.cs4r"))) {
+    warning("Auxiliary file 'emi2020_sectNOGAINS_sourceCEDS.cs4r' not found")
+  }
+
   cedsceds <- read.magpie(file.path(extraData, "p_emissions4ReportExtraCEDS.cs4r"))
   cedsiamc <- read.magpie(file.path(extraData, "p_emissions4ReportExtraIAMC.cs4r"))
+  # if-clause will be removed with Release 3.5.2
+  if (file.exists(file.path(extraData, "emi2020_sectNOGAINS_sourceCEDS.cs4r"))) {
+    cedsairpoll <- read.magpie(file.path(extraData, "emi2020_sectNOGAINS_sourceCEDS.cs4r"))
+  }
 
   if (!is.null(regionSubsetList)) {
     cedsceds <- mbind(cedsceds, calc_regionSubset_sums(cedsceds, regionSubsetList))
     cedsiamc <- mbind(cedsiamc, calc_regionSubset_sums(cedsiamc, regionSubsetList))
+    # if-clause will be removed with Release 3.5.2
+    if (file.exists(file.path(extraData, "emi2020_sectNOGAINS_sourceCEDS.cs4r"))) {
+      cedsairpoll <- mbind(cedsairpoll, calc_regionSubset_sums(cedsairpoll, regionSubsetList))
+    }
   }
 
   # check if regional resolution matches
   if (length(setdiff(getItems(report, dim = 1), getItems(cedsceds, dim = 1))) != 0 ||
-      length(setdiff(getItems(cedsceds, dim = 1), getItems(report, dim = 1))) != 0
+    length(setdiff(getItems(cedsceds, dim = 1), getItems(report, dim = 1))) != 0
   ) {
     stop("Regional resolution in 'p_emissions4ReportExtraCEDS.cs4r' and gdx do not match.")
   }
 
   if (length(setdiff(getItems(report, dim = 1), getItems(cedsiamc, dim = 1))) != 0 ||
-      length(setdiff(getItems(cedsiamc, dim = 1), getItems(report, dim = 1))) != 0
+    length(setdiff(getItems(cedsiamc, dim = 1), getItems(report, dim = 1))) != 0
   ) {
     stop("Regional resolution in 'p_emissions4ReportExtraIAMC.cs4r' and gdx do not match.")
+  }
+
+  # if-clause will be removed with Release 3.5.2
+  if (file.exists(file.path(extraData, "emi2020_sectNOGAINS_sourceCEDS.cs4r"))) {
+    if (length(setdiff(getItems(report, dim = 1), getItems(cedsairpoll, dim = 1))) != 0 ||
+      length(setdiff(getItems(cedsairpoll, dim = 1), getItems(report, dim = 1))) != 0
+    ) {
+      stop("Regional resolution in 'emi2020_sectNOGAINS_sourceCEDS.cs4r' and gdx do not match.")
+    }
   }
 
 
   # Calculate emissions that are based on emission factors.  ----
   # Derive EFs based on CEDS 2020 emissions and REMIND 2020 activities
   .deriveEF <- function(emirefyear, actreffull, refyear = 2020, convyear = NULL) {
-
     # EF in the reference year
     ef2020 <- setYears(emirefyear / actreffull[, refyear, ], NULL)
 
@@ -182,39 +211,142 @@ reportExtraEmissions <- function(mif, extraData, gdx) {
   out <- mbind(
     out,
     setNames(
-      tmp * ef,
+      tmp * ef * MtN_to_ktN2O,
       "Emi|N2O|Extra|Buildings (kt N2O/yr)"
     )
   )
+
+  # if-clause will be removed with Release 3.5.2
+  if (file.exists(file.path(extraData, "emi2020_sectNOGAINS_sourceCEDS.cs4r"))) {
+    # Calculate AP emissions that are based on ratio to CO2 emissions.  ----
+    # Derive emission ratio (ER) based on CEDS 2020 AP emissions and REMIND 2020 CO2 emissions
+    .deriveER <- function(emiAPrefyear, emico2, refyear = 2020, convyear = "never") {
+      # regional ER in the reference year
+      rer2020 <- emiAPrefyear / emico2[, refyear, ]
+      # global ER in the reference year
+      ger2020 <- dimSums(emiAPrefyear, dim = 1) / dimSums(emico2[, refyear, ], dim = 1)
+      # Preallocate with emico2 to ensure they will multiply nicely later
+      er <- emico2
+
+      if (convyear == "immediate") {
+        # If convyear is set to immediate, always use global emission ratio
+        er[, , ] <- ger2020
+      } else if (convyear == "never") {
+        # If convyear is set to never, always use regional emission ratio
+        er[, , ] <- rer2020
+      } else {
+        # If another value for convyear is given, assume linear convergence towards
+        # the global emission ratio in convyear
+        er[, , ] <- rer2020
+        er <- convergence(
+          er, as.numeric(ger2020),
+          start_year = 2020, end_year = convyear, type = "linear"
+        )
+      }
+      return(er)
+    }
+
+    # Air Pollutants from Domestic Aviation
+    # Converge to global ER in 2060
+    for (spec in c("BC", "CO", "NH3", "NOx", "OC", "SO2", "VOC")) {
+      er <- .deriveER(
+        dimReduce(cedsairpoll[, 2020, paste0("NOGAINS Domestic Aviation.", spec)]),
+        report[, , "Emi|CO2|Energy|Demand|Transport|Pass|Domestic Aviation"],
+        refyear = 2020,
+        convyear = 2060
+      )
+      out <- mbind(
+        out,
+        setNames(
+          report[, , "Emi|CO2|Energy|Demand|Transport|Pass|Domestic Aviation"] * er,
+          paste0("Emi|", toupper(spec), "|Extra|Energy|Demand|Transport|Pass|Domestic Aviation (Mt ", toupper(spec), "/yr)")
+        )
+      )
+    }
+
+    # Air Pollutants from International Aviation
+    # Always use global emissions ratio since CEDS2025 emissions are only available as global total (and regional
+    # disaggregation in REMIND was uniform)
+    for (spec in c("BC", "CO", "NH3", "NOx", "OC", "SO2", "VOC")) {
+      er <- .deriveER(
+        dimReduce(cedsairpoll[, 2020, paste0("NOGAINS International Aviation.", spec)]),
+        report[, , "Emi|CO2|Energy|Demand|Transport|Bunkers|Pass|International Aviation"],
+        refyear = 2020,
+        convyear = "immediate"
+      )
+      out <- mbind(
+        out,
+        setNames(
+          report[, , "Emi|CO2|Energy|Demand|Transport|Bunkers|Pass|International Aviation"] * er,
+          paste0("Emi|", toupper(spec), "|Extra|Energy|Demand|Transport|Bunkers|Pass|International Aviation (Mt ", toupper(spec), "/yr)")
+        )
+      )
+    }
+
+    # Aggregation: Domestic Aviation + International Aviation
+    for (spec in c("BC", "CO", "NH3", "NOx", "OC", "SO2", "VOC")) {
+      out <- mbind(
+        out,
+        setNames(
+          dimSums(out[
+            , ,
+            c(
+              paste0("Emi|", toupper(spec), "|Extra|Energy|Demand|Transport|Bunkers|Pass|International Aviation (Mt ", toupper(spec), "/yr)"),
+              paste0("Emi|", toupper(spec), "|Extra|Energy|Demand|Transport|Pass|Domestic Aviation (Mt ", toupper(spec), "/yr)")
+            )
+          ], dim = 3),
+          paste0("Emi|", toupper(spec), "|Extra|Energy|Demand|Transport|Pass|Aviation (Mt ", toupper(spec), "/yr)")
+        )
+      )
+    }
+
+    # Air Pollutants from International Shipping
+    # Calculate global AP emissions based on ratio to global CO2 emissions.
+    for (spec in c("BC", "CO", "NH3", "NOx", "OC", "SO2", "VOC")) {
+      er <- .deriveER(
+        dimReduce(cedsairpoll[, 2020, paste0("NOGAINS International Shipping.", spec)]),
+        report[, , "Emi|CO2|Energy|Demand|Transport|Bunkers|Freight|International Shipping"],
+        refyear = 2020,
+        convyear = "immediate"
+      )
+      out <- mbind(
+        out,
+        setNames(
+          report[, , "Emi|CO2|Energy|Demand|Transport|Bunkers|Freight|International Shipping"] * er,
+          paste0("Emi|", toupper(spec), "|Extra|Energy|Demand|Transport|Bunkers|Freight|International Shipping (Mt ", toupper(spec), "/yr)")
+        )
+      )
+    }
+  }
 
   # Aggregate to global. Since all variables are emissions, we can just sum them
   out <- mbind(out, setItems(dimSums(out, dim = 1), dim = 1, value = "World"))
 
   # Set emissions to zero that are not represented but that are required for
   # earth system harmonization
-  out <- add_columns(out, addnm = "Emi|BC|Extra|Land Use|Peat Burning (Mt BC/yr)",                  dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CH4|Extra|Land Use|Peat Burning (Mt CH4/yr)",                dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|BC|Extra|Land Use|Peat Burning (Mt BC/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CH4|Extra|Land Use|Peat Burning (Mt CH4/yr)", dim = 3.1, fill = 0)
   out <- add_columns(out, addnm = "Emi|CH4|Extra|Energy Demand|International Aviation (Mt CH4/yr)", dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CH4|Extra|Energy Demand|Domestic Aviation (Mt CH4/yr)",      dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CH4|Extra|Energy Demand|Transport (Mt CH4/yr)",              dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CH4|Extra|Energy Demand|Industry (Mt CH4/yr)",               dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CH4|Extra|Industrial Processes (Mt CH4/yr)",                 dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CH4|Extra|Solvents (Mt CH4/yr)",                             dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Agriculture (Mt CO2/yr)",                 dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Agricultural Waste Burning (Mt CO2/yr)",  dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Forest Burning (Mt CO2/yr)",              dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Savannah Burning (Mt CO2/yr)",            dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Peat Burning (Mt CO2/yr)",                dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CO2|Extra|Solvents (Mt CO2/yr)",                             dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|CO|Extra|Land Use|Peat Burning (Mt CO/yr)",                  dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|N2O|Extra|Land Use|Peat Burning (kt N2O/yr)",                dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|N2O|Extra|Energy Demand|Industry (kt N2O/yr)",               dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|N2O|Extra|Solvents (kt N2O/yr)",                             dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|NH3|Extra|Land Use|Peat Burning (Mt NH3/yr)",                dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|NOX|Extra|Land Use|Peat Burning (Mt NOX/yr)",                dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|OC|Extra|Land Use|Peat Burning (Mt OC/yr)",                  dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|SO2|Extra|Land Use|Peat Burning (Mt SO2/yr)",                dim = 3.1, fill = 0)
-  out <- add_columns(out, addnm = "Emi|VOC|Extra|Land Use|Peat Burning (Mt VOC/yr)",                dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CH4|Extra|Energy Demand|Domestic Aviation (Mt CH4/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CH4|Extra|Energy Demand|Transport (Mt CH4/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CH4|Extra|Energy Demand|Industry (Mt CH4/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CH4|Extra|Industrial Processes (Mt CH4/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CH4|Extra|Solvents (Mt CH4/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Agriculture (Mt CO2/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Agricultural Waste Burning (Mt CO2/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Forest Burning (Mt CO2/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Savannah Burning (Mt CO2/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CO2|Extra|Land Use|Peat Burning (Mt CO2/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CO2|Extra|Solvents (Mt CO2/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|CO|Extra|Land Use|Peat Burning (Mt CO/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|N2O|Extra|Land Use|Peat Burning (kt N2O/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|N2O|Extra|Energy Demand|Industry (kt N2O/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|N2O|Extra|Solvents (kt N2O/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|NH3|Extra|Land Use|Peat Burning (Mt NH3/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|NOX|Extra|Land Use|Peat Burning (Mt NOX/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|OC|Extra|Land Use|Peat Burning (Mt OC/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|SO2|Extra|Land Use|Peat Burning (Mt SO2/yr)", dim = 3.1, fill = 0)
+  out <- add_columns(out, addnm = "Emi|VOC|Extra|Land Use|Peat Burning (Mt VOC/yr)", dim = 3.1, fill = 0)
 
   # Convert to quitte and ensure it has the same model and scenario as the original report
   out <- as.quitte(out)

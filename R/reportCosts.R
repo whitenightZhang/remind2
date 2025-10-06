@@ -91,9 +91,9 @@ reportCosts <- function(gdx,output=NULL,regionSubsetList=NULL,t=c(seq(2005,2060,
   pm_XPortsPrice         <- readGDX(gdx,name=c("pm_XPortsPrice"),format = "first_found")
   p_dataeta              <- readGDX(gdx,name=c("pm_dataeta","p_dataeta"),format="first_found")
   pm_pvp                 <- readGDX(gdx,name=c("pm_pvp"),format = "first_found")
-  cost_emu_pre           <- readGDX(gdx,name="p30_pebiolc_costs_emu_preloop",format="first_found")
+  cost_emu_pre           <- readGDX(gdx,name=c("pm_pebiolc_costs_emu_preloop", "p30_pebiolc_costs_emu_preloop"),format="first_found")
   cost_mag               <- readGDX(gdx,name="p30_pebiolc_costsmag",format="first_found", react = "silent")[,getYears(cost_emu_pre),]
-  totLUcosts             <- readGDX(gdx,name=c("pm_totLUcosts"),format="first_found")[,getYears(cost_emu_pre),]
+  totLUcosts             <- readGDX(gdx,name=c("pm_totLUcosts_excl_costFuBio", "pm_totLUcosts"),format="first_found")[,getYears(cost_emu_pre),]
   totLUcostsWithMAC      <- readGDX(gdx,name=c("p26_totLUcosts_withMAC"),format="first_found")[,getYears(cost_emu_pre),]
   costsLuMACLookup       <- readGDX(gdx,name=c("p26_macCostLu"),format="first_found")[,getYears(cost_emu_pre),]
   costsMAC               <- readGDX(gdx,name=c("pm_macCost","p_macCost"),format="first_found")[,getYears(cost_emu_pre),]

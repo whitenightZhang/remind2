@@ -24,15 +24,9 @@
 #' @importFrom gdx readGDX
 #' @importFrom magclass new.magpie mbind getNames<- setNames collapseNames getYears getItems
 reportEmiAirPol <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 5), seq(2070, 2110, 10), 2130, 2150)) {
-  # Get realisation name
-  realisation <- readGDX(gdx, "module2realisation")
-  realisation <- realisation[which(realisation[, 1] == "aerosols"), 2]
-
   ######### initialisation  ###########
   tmp <- NULL
   out <- NULL
-
-  if (!realisation == "exoGAINS") stop("not allowed air pollution realization.")
 
   ######### initialisation  ###########
   airpollutants <- c("so2", "bc", "oc", "CO", "VOC", "NOx", "NH3")
@@ -50,29 +44,59 @@ reportEmiAirPol <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 
     # add indprocess to indst
     emiAPexsolve[, , "indst"] <- emiAPexsolve[, , "indst"] + emiAPexsolve[, , "indprocess"]
 
-    # Replace REMIND sector names by reporting ones
-    mapping <- data.frame(
-      remind = c("power", "indst", "res", "trans", "solvents", "extraction"),
-      reporting = c(
-        paste0("Emi|", poll_rep, "|Energy Supply|Electricity (Mt ", poll_rep, "/yr)"),
-        paste0("Emi|", poll_rep, "|Energy Demand|Industry (Mt ", poll_rep, "/yr)"),
-        paste0("Emi|", poll_rep, "|Energy Demand|Buildings (Mt ", poll_rep, "/yr)"),
-        paste0("Emi|", poll_rep, "|Energy Demand|Transport|Ground Trans (Mt ", poll_rep, "/yr)"),
-        paste0("Emi|", poll_rep, "|Solvents (Mt ", poll_rep, "/yr)"),
-        paste0("Emi|", poll_rep, "|Energy Supply|Extraction (Mt ", poll_rep, "/yr)")
+    # Case distinction to ensure backwarsds compatibility with older REMIND versions
+    # The old version will be removed from remind2 with Release 3.5.2
+    if ("Waste" %in% getNames(emiAPexo)) {
+      ## Old version: Sector "Waste" is part of p11_emiAPexo
+      # Replace REMIND sector names by reporting ones
+      mapping <- data.frame(
+        remind = c("power", "indst", "res", "trans", "solvents", "extraction"),
+        reporting = c(
+          paste0("Emi|", poll_rep, "|Energy Supply|Electricity (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Energy Demand|Industry (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Energy Demand|Buildings (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Energy Demand|Transport|Ground Trans (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Solvents (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Energy Supply|Extraction (Mt ", poll_rep, "/yr)")
+        )
       )
-    )
 
-    emiAPexsolve <- setNames(emiAPexsolve[, , mapping$remind], as.character(mapping$reporting))
+      emiAPexsolve <- setNames(emiAPexsolve[, , mapping$remind], as.character(mapping$reporting))
 
-    tmp <- mbind(
-      emiAPexsolve,
-      setNames(emiAPexo[, , "AgWasteBurning"],   paste0("Emi|", poll_rep, "|Land Use|Agricultural Waste Burning (Mt ", poll_rep, "/yr)")),
-      setNames(emiAPexo[, , "Agriculture"],      paste0("Emi|", poll_rep, "|Land Use|Agriculture (Mt ", poll_rep, "/yr)")),
-      setNames(emiAPexo[, , "ForestBurning"],    paste0("Emi|", poll_rep, "|Land Use|Forest Burning (Mt ", poll_rep, "/yr)")),
-      setNames(emiAPexo[, , "GrasslandBurning"], paste0("Emi|", poll_rep, "|Land Use|Savannah Burning (Mt ", poll_rep, "/yr)")),
-      setNames(emiAPexo[, , "Waste"],            paste0("Emi|", poll_rep, "|Waste (Mt ", poll_rep, "/yr)"))
-    )
+      tmp <- mbind(
+        emiAPexsolve,
+        setNames(emiAPexo[, , "AgWasteBurning"], paste0("Emi|", poll_rep, "|Land Use|Agricultural Waste Burning (Mt ", poll_rep, "/yr)")),
+        setNames(emiAPexo[, , "Agriculture"], paste0("Emi|", poll_rep, "|Land Use|Agriculture (Mt ", poll_rep, "/yr)")),
+        setNames(emiAPexo[, , "ForestBurning"], paste0("Emi|", poll_rep, "|Land Use|Forest Burning (Mt ", poll_rep, "/yr)")),
+        setNames(emiAPexo[, , "GrasslandBurning"], paste0("Emi|", poll_rep, "|Land Use|Savannah Burning (Mt ", poll_rep, "/yr)")),
+        setNames(emiAPexo[, , "Waste"], paste0("Emi|", poll_rep, "|Waste (Mt ", poll_rep, "/yr)"))
+      )
+    } else {
+      ## New version: Sector "waste" is part of p11_emiAPexsolve
+      # Replace REMIND sector names by reporting ones
+      mapping <- data.frame(
+        remind = c("power", "indst", "res", "trans", "solvents", "extraction", "waste"),
+        reporting = c(
+          paste0("Emi|", poll_rep, "|Energy Supply|Electricity (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Energy Demand|Industry (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Energy Demand|Buildings (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Energy Demand|Transport|Ground Trans (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Solvents (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Energy Supply|Extraction (Mt ", poll_rep, "/yr)"),
+          paste0("Emi|", poll_rep, "|Waste (Mt ", poll_rep, "/yr)")
+        )
+      )
+
+      emiAPexsolve <- setNames(emiAPexsolve[, , mapping$remind], as.character(mapping$reporting))
+
+      tmp <- mbind(
+        emiAPexsolve,
+        setNames(emiAPexo[, , "AgWasteBurning"], paste0("Emi|", poll_rep, "|Land Use|Agricultural Waste Burning (Mt ", poll_rep, "/yr)")),
+        setNames(emiAPexo[, , "Agriculture"], paste0("Emi|", poll_rep, "|Land Use|Agriculture (Mt ", poll_rep, "/yr)")),
+        setNames(emiAPexo[, , "ForestBurning"], paste0("Emi|", poll_rep, "|Land Use|Forest Burning (Mt ", poll_rep, "/yr)")),
+        setNames(emiAPexo[, , "GrasslandBurning"], paste0("Emi|", poll_rep, "|Land Use|Savannah Burning (Mt ", poll_rep, "/yr)"))
+      )
+    }
 
     # Set NAs to 0
     tmp[is.na(tmp)] <- 0
@@ -91,10 +115,6 @@ reportEmiAirPol <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 
   p11_emiAPexo <- readGDX(
     gdx,
     name = c("p11_emiAPexo", "pm_emiAPexo"), field = "l", format = "first_found"
-  )[, ttot, airpollutants]
-  p11_emiAPexoGlob <- readGDX(
-    gdx,
-    name = c("p11_emiAPexoGlob", "pm_emiAPexoGlob"), field = "l", format = "first_found"
   )[, ttot, airpollutants]
 
   ####### prepare parameter ########################
@@ -115,32 +135,16 @@ reportEmiAirPol <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 
   # Loop over air pollutants and add some variables
   for (pollutant in airpollutants) {
     poll_rep <- toupper(pollutant)
-    tmp <- NULL
-    # Add Aviation and Int. Shipping emissions
-    tmp <- mbind(
-      tmp,
-      setNames(
-        p11_emiAPexoGlob["GLO", , "InternationalShipping"][, , pollutant],
-        paste0("Emi|", poll_rep, "|Energy Demand|Transport|International Shipping (Mt ", poll_rep, "/yr)")
-      ),
-      setNames(
-        p11_emiAPexoGlob["GLO", , "Aviation"][, , pollutant],
-        paste0("Emi|", poll_rep, "|Energy Demand|Transport|Aviation (Mt ", poll_rep, "/yr)")
-      )
-    )
-    tmp1 <- new.magpie(getItems(out, dim = 1), getYears(out), getNames(tmp), fill = 0)
-    tmp1["GLO", , ] <- tmp["GLO", , ]
-    out <- mbind(out, tmp1)
     # Aggregation: Transport and Energy Supply
+    ## Aviation and International Shipping air pollutant emissions are computed in reportExtraEmissions,
+    ## and thus neither included in Energy Demand|Transport not in the totals. 
     out <- mbind(
       out,
       setNames(
         dimSums(out[
           , ,
           c(
-            paste0("Emi|", poll_rep, "|Energy Demand|Transport|Ground Trans (Mt ", poll_rep, "/yr)"),
-            paste0("Emi|", poll_rep, "|Energy Demand|Transport|International Shipping (Mt ", poll_rep, "/yr)"),
-            paste0("Emi|", poll_rep, "|Energy Demand|Transport|Aviation (Mt ", poll_rep, "/yr)")
+            paste0("Emi|", poll_rep, "|Energy Demand|Transport|Ground Trans (Mt ", poll_rep, "/yr)")
           )
         ], dim = 3),
         paste0("Emi|", poll_rep, "|Energy Demand|Transport (Mt ", poll_rep, "/yr)")
