@@ -290,7 +290,8 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
 
   ## Read-in chemical feedstocks variables ----
   v37_plasticsCarbon <- readGDX(gdx, "o37_plasticsCarbon", field = "l", temporal = 1, spatial = 2,
-                                restore_zeros = FALSE, react = "silent")[, t, ]
+                                restore_zeros = FALSE, react = "silent")[, t, ]                           
+  v37_plasticsCarbon[is.na(v37_plasticsCarbon)] <- 0
 
   vm_emiNonFosNonIncineratedPlastics <- readGDX(gdx, c("v37_emiNonFosNonIncineratedPlastics","vm_emiNonFosNonIncineratedPlastics"), field = "l",
                                                  restore_zeros = FALSE, react = "silent")[, t, ]
@@ -308,17 +309,22 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
                                 field = "l",
                                 restore_zeros = FALSE, spatial = 2,
                                 react = "silent")[, t, ]
+  vm_incinerationEmi[is.na(vm_incinerationEmi)] <- 0
 
   vm_incinerationEmi <- magclass::matchDim(vm_incinerationEmi, v37_plasticsCarbon, fill = 0)
 
 
-  vm_incinerationCCS <- readGDX(gdx, "o37_incinerationCCS", field = "l",
-                                restore_zeros = FALSE, spatial = 2,
-                                react = "silent")[, t, ]
+  vm_incinerationCCS <- tryCatch({
+    readGDX(gdx, "o37_incinerationCCS", restore_zeros = FALSE, spatial = 2, react = "silent")[, t, ]
+  }, error = function(e) NULL)
 
   if (is.null(vm_incinerationCCS)) {
-    rm("vm_incinerationCCS")
+    # rm("vm_incinerationCCS")
+    # HOTFIX this leads to an error in line 522, therefore we create a zero magpie here
+    vm_incinerationCCS <- vm_incinerationEmi
+    vm_incinerationCCS[,] <- 0
   } else {
+    vm_incinerationCCS[is.na(vm_incinerationCCS)] <- 0
     vm_incinerationCCS <- magclass::matchDim(vm_incinerationCCS, vm_incinerationEmi)
   }
 
@@ -329,6 +335,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
                               restore_zeros = FALSE,
                               spatial = 2,
                               react = "silent")[, t, ]
+  v37_plasticWaste[is.na(v37_plasticWaste)] <- 0
 
   pm_incinerationRate <- readGDX(gdx, "pm_incinerationRate",
                                  field = "l",
@@ -346,6 +353,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
 
   # read in total feedstocks carbon
   v37_feedstocksCarbon <- readGDX(gdx, "o37_feedstocksCarbon", field = "l", restore_zeros = FALSE, spatial = 2)
+  v37_feedstocksCarbon[is.na(v37_feedstocksCarbon)] <- 0
   # read in share of non-plastics carbon that gets emitted
   cm_nonPlasticFeedstockEmiShare <- readGDX(gdx, "cm_nonPlasticFeedstockEmiShare") %>%
     as.vector()
