@@ -289,8 +289,12 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
 
 
   ## Read-in chemical feedstocks variables ----
-  v37_plasticsCarbon <- readGDX(gdx, "o37_plasticsCarbon", field = "l", temporal = 1, spatial = 2,
-                                restore_zeros = FALSE, react = "silent")[, t, ]                           
+  o37_carbonaceousSeFeShare <- readGDX(gdx, "o37_carbonaceousSeFeShare", field = "l", temporal = 1, spatial = 2,
+                                restore_zeros = FALSE, react = "silent")[, t, ]
+
+  v37_plasticsCarbon <- readGDX(gdx, "v37_plasticsCarbon", field = "l", temporal = 1, spatial = 2,
+                                restore_zeros = FALSE, react = "silent")[, t, ]
+  v37_plasticsCarbon <- o37_carbonaceousSeFeShare * collapseDim(v37_plasticsCarbon, dim=3)
   v37_plasticsCarbon[is.na(v37_plasticsCarbon)] <- 0
 
   vm_emiNonFosNonIncineratedPlastics <- readGDX(gdx, c("v37_emiNonFosNonIncineratedPlastics","vm_emiNonFosNonIncineratedPlastics"), field = "l",
@@ -305,10 +309,11 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
   v37_emiNonPlasticWaste <- magclass::matchDim(v37_emiNonPlasticWaste,
                                                v37_plasticsCarbon, fill = 0, dim = 1)
 
-  vm_incinerationEmi <- readGDX(gdx, c("o37_incinerationEmi"),
+  vm_incinerationEmi <- readGDX(gdx, c("v37_incinerationEmi"),
                                 field = "l",
                                 restore_zeros = FALSE, spatial = 2,
                                 react = "silent")[, t, ]
+  vm_incinerationEmi <- o37_carbonaceousSeFeShare * vm_incinerationEmi[,,"ETS"]
   vm_incinerationEmi[is.na(vm_incinerationEmi)] <- 0
 
   vm_incinerationEmi <- magclass::matchDim(vm_incinerationEmi, v37_plasticsCarbon, fill = 0)
@@ -324,6 +329,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     vm_incinerationCCS <- vm_incinerationEmi
     vm_incinerationCCS[,] <- 0
   } else {
+    vm_incinerationCCS <- o37_carbonaceousSeFeShare * collapseDim(vm_incinerationCCS, dim=3)
     vm_incinerationCCS[is.na(vm_incinerationCCS)] <- 0
     vm_incinerationCCS <- magclass::matchDim(vm_incinerationCCS, vm_incinerationEmi)
   }
@@ -331,10 +337,11 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
   vm_nonIncineratedPlastics   <- readGDX(gdx, "vm_nonIncineratedPlastics", field = "l", restore_zeros = FALSE,
                                          spatial = 2, react = "silent")[, t, ]
 
-  v37_plasticWaste <- readGDX(gdx, "o37_plasticWaste", field = "l",
+  v37_plasticWaste <- readGDX(gdx, "v37_plasticWaste", field = "l",
                               restore_zeros = FALSE,
                               spatial = 2,
                               react = "silent")[, t, ]
+  v37_plasticWaste <- o37_carbonaceousSeFeShare * collapseDim(v37_plasticWaste, dim=3)
   v37_plasticWaste[is.na(v37_plasticWaste)] <- 0
 
   pm_incinerationRate <- readGDX(gdx, "pm_incinerationRate",
@@ -352,7 +359,8 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
 
 
   # read in total feedstocks carbon
-  v37_feedstocksCarbon <- readGDX(gdx, "o37_feedstocksCarbon", field = "l", restore_zeros = FALSE, spatial = 2)
+  v37_feedstocksCarbon <- readGDX(gdx, "v37_feedstocksCarbon", field = "l", restore_zeros = FALSE, spatial = 2)
+  v37_feedstocksCarbon <- o37_carbonaceousSeFeShare * collapseDim(v37_feedstocksCarbon, dim=3)
   v37_feedstocksCarbon[is.na(v37_feedstocksCarbon)] <- 0
   # read in share of non-plastics carbon that gets emitted
   cm_nonPlasticFeedstockEmiShare <- readGDX(gdx, "cm_nonPlasticFeedstockEmiShare") %>%
@@ -2041,9 +2049,9 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     setNames(-out[, , "Carbon Management|Storage|+|DAC (Mt CO2/yr)"],
              "Emi|CO2|CDR|+|DACCS (Mt CO2/yr)"),
 
-    # total Biochar 
+    # total Biochar
     setNames(emi_Biochar * GtC_2_MtCO2,
-              "Emi|CO2|CDR|+|Biochar (Mt CO2/yr)"), 
+              "Emi|CO2|CDR|+|Biochar (Mt CO2/yr)"),
 
     # total EW
     setNames(vm_emiCdrTeDetail[, , "weathering"] * GtC_2_MtCO2,
@@ -2141,7 +2149,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
              + out[, , "Carbon Management|Storage|Energy|Pe2Se|Biomass|+|Gases w/ couple prod (Mt CO2/yr)"],
              "Emi|CO2|Gross|Energy|Supply|+|Gases (Mt CO2/yr)"),
     setNames(out[, , "Emi|CO2|Energy|Supply|+|Biochar w/ couple prod (Mt CO2/yr)"]
-              - out[, , "Emi|CO2|Energy|Supply|+|Biochar w/ couple prod (Mt CO2/yr)"], 
+              - out[, , "Emi|CO2|Energy|Supply|+|Biochar w/ couple prod (Mt CO2/yr)"],
               "Emi|CO2|Gross|Energy|Supply|+|Biochar (Mt CO2/yr)"), # gross emissions of biochar are zero.
 
     # total gross supply emissions, net emissions + supply BECCS + biochar removal + non-fossil waste incineration CCS attributed to energy supply
