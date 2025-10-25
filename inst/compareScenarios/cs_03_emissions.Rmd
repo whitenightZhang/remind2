@@ -17,12 +17,14 @@ showLinePlots(data, "Emi|GHG|w/ Bunkers|LULUCF national accounting")
 ### GHG total w/o Bunkers
 ```{r GHG total w/o Bunkers}
 # TODO: EU sources and PRIMAP still exclude bunkers in default vars -> update
-showLinePlots(data, "Emi|GHG|w/o Bunkers", histVars = "Emi|GHG")
+showLinePlots(data, "Emi|GHG|w/o Bunkers", histVars = "Emi|GHG",
+              histModelsExclude = "ClimateTrace")
 ```
 
 ### GHG total w/ Bunkers
 ```{r GHG total w/ Bunkers}
-showLinePlots(data, "Emi|GHG|w/ Bunkers")
+showLinePlots(data, "Emi|GHG|w/ Bunkers",
+              histModelsExclude = "ClimateTrace")
 ```
 
 ### GHG - total
@@ -31,7 +33,8 @@ showLinePlots(data, "Emi|GHG|w/ Bunkers")
 showLinePlots(
   data, 
   vars = "Emi|GHG", 
-  histVars = c("Emi|GHGtot", "Emi|GHG")
+  histVars = c("Emi|GHGtot", "Emi|GHG"),
+  histModelsExclude = "ClimateTrace"
 )
 
 items <- c(
@@ -87,17 +90,20 @@ showLinePlots(data, "Emi|CO2|w/ Bunkers|LULUCF national accounting")
 ### CO2 total w/o Bunkers
 ```{r CO2 total w/o Bunkers}
 # TODO: EU sources and PRIMAP still exclude bunkers in default vars -> update
-showLinePlots(data, "Emi|CO2|w/o Bunkers", histVars = "Emi|CO2")
+showLinePlots(data, "Emi|CO2|w/o Bunkers", histVars = "Emi|CO2",
+              histModelsExclude = "ClimateTrace")
 ```
 
 ### CO2 total w/ Bunkers 
 ```{r CO2 total w/ Bunkers}
-showLinePlots(data, "Emi|CO2|w/ Bunkers")
+showLinePlots(data, "Emi|CO2|w/ Bunkers",
+              histModelsExclude = "ClimateTrace")
 ```
 
 ### Total CO2 (for comparison with old REMIND versions)
 ```{r Total CO2 (for comparison with old REMIND versions)}
-showLinePlots(data, "Emi|CO2")
+showLinePlots(data, "Emi|CO2",
+              histModelsExclude = "ClimateTrace")
 ```
 
 
@@ -334,7 +340,8 @@ showLinePlots(data, "Emi|CO2|Waste|Non-plastic Waste")
 showLinePlots(
   data, 
   vars = "Emi|CO2|Land-Use Change", 
-  c("Emi|CO2|Land-Use Change", "Emi|CO2|Land Use")
+  c("Emi|CO2|Land-Use Change", "Emi|CO2|Land Use"),
+  histModelsExclude = "ClimateTrace"
 )
 ```
 
@@ -351,7 +358,8 @@ showLinePlots(
 
 ### novel CDR outside the energy system
 ```{r novel CDR outside the energy system}
-showLinePlots(data, "Emi|CO2|non-ES CDR")
+showLinePlots(data, "Emi|CO2|non-ES CDR",
+              histModelsExclude = "ClimateTrace")
 ```
 
 ### CDR compared to other CO2 emissions

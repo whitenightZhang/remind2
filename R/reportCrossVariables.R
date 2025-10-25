@@ -401,7 +401,7 @@ reportCrossVariables <- function(gdx, output = NULL, regionSubsetList = NULL,
   }
 
   # add adjusted electricity from coal and other fossils ----
-  # TODO: deprecated fallback, will be removed eventually
+
   if (is.null(extraData)) {
 
     regionHash <- digest::digest(sort(readGDX(gdx, "all_regi")), "xxhash32")
@@ -415,14 +415,17 @@ reportCrossVariables <- function(gdx, output = NULL, regionSubsetList = NULL,
       stop("No file 'se_otherfoss.cs4r' found for regions in .gdx file.")
     }
 
-    projections <- read.csv(
-      system.file("extdata", otherFossilsFile, package = "remind2"),
-      sep = ",", skip = 4, header = FALSE
-    ) %>% as.magpie(temporal = 1, spatial = 2)
+    # download auxiliary file from RSE server
+    f <- downloadAuxiliaryFile(otherFossilsFile)
+
+    projections <- read.csv(f, sep = ",", skip = 4, header = FALSE) %>%
+      as.magpie(temporal = 1, spatial = 2)
 
     if (!is.null(regionSubsetList)) {
       projections <- mbind(projections, calc_regionSubset_sums(projections, regionSubsetList))
     }
+
+    unlink(f)
 
   } else {
 
