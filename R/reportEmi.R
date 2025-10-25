@@ -302,7 +302,6 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
 
 
   ## Read-in chemical feedstocks variables ----
-<<<<<<< HEAD
   o37_carbonaceousSeFeShare <- readGDX(gdx, "o37_carbonaceousSeFeShare", field = "l", temporal = 1, spatial = 2,
                                 restore_zeros = FALSE, react = "silent")[, t, ]
 
@@ -310,12 +309,6 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
                                 restore_zeros = FALSE, react = "silent")[, t, ]
   v37_plasticsCarbon <- o37_carbonaceousSeFeShare * collapseDim(v37_plasticsCarbon, dim=3)
   v37_plasticsCarbon[is.na(v37_plasticsCarbon)] <- 0
-=======
-  v37_plasticsCarbon <- readGDX(gdx, "v37_plasticsCarbon",
-    field = "l", temporal = 1, spatial = 2,
-    restore_zeros = FALSE, react = "silent"
-  )[, t, ]
->>>>>>> upstream/master
 
   vm_emiNonFosNonIncineratedPlastics <- readGDX(gdx, c("v37_emiNonFosNonIncineratedPlastics", "vm_emiNonFosNonIncineratedPlastics"),
     field = "l",
@@ -337,35 +330,19 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     fill = 0, dim = 1
   )
 
-<<<<<<< HEAD
   vm_incinerationEmi <- readGDX(gdx, c("v37_incinerationEmi"),
                                 field = "l",
                                 restore_zeros = FALSE, spatial = 2,
                                 react = "silent")[, t, ]
   vm_incinerationEmi <- o37_carbonaceousSeFeShare * vm_incinerationEmi[,,"ETS"]
   vm_incinerationEmi[is.na(vm_incinerationEmi)] <- 0
-=======
-  vm_incinerationEmi <- readGDX(gdx, c("vm_incinerationEmi", "v37_incinerationEmi"),
-    field = "l",
-    restore_zeros = FALSE, spatial = 2,
-    react = "silent"
-  )[, t, ]
->>>>>>> upstream/master
 
   vm_incinerationEmi <- magclass::matchDim(vm_incinerationEmi, v37_plasticsCarbon, fill = 0)
 
 
-<<<<<<< HEAD
   vm_incinerationCCS <- tryCatch({
     readGDX(gdx, "o37_incinerationCCS", restore_zeros = FALSE, spatial = 2, react = "silent")[, t, ]
   }, error = function(e) NULL)
-=======
-  vm_incinerationCCS <- readGDX(gdx, "vm_incinerationCCS",
-    field = "l",
-    restore_zeros = FALSE, spatial = 2,
-    react = "silent"
-  )[, t, ]
->>>>>>> upstream/master
 
   if (is.null(vm_incinerationCCS)) {
     # rm("vm_incinerationCCS")
@@ -383,21 +360,12 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     spatial = 2, react = "silent"
   )[, t, ]
 
-<<<<<<< HEAD
   v37_plasticWaste <- readGDX(gdx, "v37_plasticWaste", field = "l",
                               restore_zeros = FALSE,
                               spatial = 2,
                               react = "silent")[, t, ]
   v37_plasticWaste <- o37_carbonaceousSeFeShare * collapseDim(v37_plasticWaste, dim=3)
   v37_plasticWaste[is.na(v37_plasticWaste)] <- 0
-=======
-  v37_plasticWaste <- readGDX(gdx, "v37_plasticWaste",
-    field = "l",
-    restore_zeros = FALSE,
-    spatial = 2,
-    react = "silent"
-  )[, t, ]
->>>>>>> upstream/master
 
   pm_incinerationRate <- readGDX(gdx, "pm_incinerationRate",
     field = "l",
