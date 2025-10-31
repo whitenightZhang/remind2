@@ -12,6 +12,7 @@
 #' @param scenario scenario name that is used in the *.mif reporting
 #' @param t temporal resolution of the reporting, default:
 #' t=c(seq(2005,2060,5),seq(2070,2110,10),2130,2150)
+#' @param extraData path to extra data files to be used in the reporting
 #' @author David Klein
 #' @examples
 #'
@@ -21,7 +22,7 @@
 
 convGDX2MIF_REMIND2MAgPIE <- function(gdx, file = NULL, scenario = "default",
                         t = c(seq(2005, 2060, 5), seq(2070, 2110, 10),
-                              2130, 2150)) {
+                              2130, 2150), extraData = NULL) {
    # Define region subsets
   regionSubsetList <- toolRegionSubsets(gdx)
   # ADD EU-27 region aggregation if possible
@@ -45,7 +46,7 @@ convGDX2MIF_REMIND2MAgPIE <- function(gdx, file = NULL, scenario = "default",
   message("running reportExtraction...")
   output <- mbind(output,reportExtraction(gdx,regionSubsetList,t)[,t,])
   message("running reportEmi...")
-  output <- mbind(output,reportEmi(gdx,output,regionSubsetList,t)[,t,])    # needs output from reportFE
+  output <- mbind(output,reportEmi(gdx,output,regionSubsetList,t, extraData)[,t,]) # needs output from reportFE
   message("running reportPrices...")
   output <- mbind(output,reportPrices(gdx,output,regionSubsetList,t)[,t,]) # needs output from reportTrade, reportSE, reportFE, reportEmi, reportExtraction, reportMacroEconomy
 

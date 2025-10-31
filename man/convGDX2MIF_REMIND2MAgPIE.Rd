@@ -8,7 +8,8 @@ convGDX2MIF_REMIND2MAgPIE(
   gdx,
   file = NULL,
   scenario = "default",
-  t = c(seq(2005, 2060, 5), seq(2070, 2110, 10), 2130, 2150)
+  t = c(seq(2005, 2060, 5), seq(2070, 2110, 10), 2130, 2150),
+  extraData = NULL
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ returned}
 
 \item{t}{temporal resolution of the reporting, default:
 t=c(seq(2005,2060,5),seq(2070,2110,10),2130,2150)}
+
+\item{extraData}{path to extra data files to be used in the reporting}
 }
 \description{
 Read in information from GDX file and create the *.mif reporting
