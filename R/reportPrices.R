@@ -124,6 +124,8 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
   pm_SEPrice <- readGDX(gdx, "pm_SEPrice")
   pm_PEPrice <- readGDX(gdx, c("p_PEPrice", "pm_PEPrice"), format = "first_found")
 
+  pm_CCUPrice <- readGDX(gdx, "pm_CCUPrice", format = "first_found", react = "silent")
+  
   vm_demFeSector <- readGDX(gdx, "vm_demFeSector", field = "l", restore_zeros = FALSE)[, t, ]
   prodSe         <- readGDX(gdx, "vm_prodSe", field = "l", restore_zeros = FALSE)[, t, ]
   try(seAgg <- readGDX(gdx, name = "seAgg", type = "set"))
@@ -151,6 +153,12 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
   pm_PEPrice <- pm_PEPrice[, YearsFrom2005, unique(pe2se$all_enty)]
   pm_SEPrice <- pm_SEPrice[, YearsFrom2005, unique(se2fe$all_enty)]
   pm_FEPrice <- pm_FEPrice[, YearsFrom2005, fe.entries.dot]
+
+  if (!is.null(pm_CCUPrice) && length(pm_CCUPrice) > 0) {
+    pm_CCUPrice <- pm_CCUPrice[, YearsFrom2005, ]
+    pm_CCUPrice <- dimSums(pm_CCUPrice, dim = 3, na.rm = TRUE) / dimSums(pm_CCUPrice != 0, dim = 3, na.rm = TRUE)
+    pm_CCUPrice[is.na(pm_CCUPrice)] <- 0
+  }
 
   ## weights for market aggregation of prices: FE share of market
   p_weights_FEprice_mkt <- dimSums(vm_demFeSector, dim = 3.1, na.rm = TRUE) / dimSums(vm_demFeSector, dim = c(3.1, 3.4), na.rm = TRUE)
@@ -286,7 +294,6 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
                setNames(mselect(pm_PEPrice, all_enty = "pebioil") * tdptwyr2dpgj,
                         "Price|Primary Energy|Biomass|1st Generation|Oil-based (US$2017/GJ)")
   )
-
 
   # FE marginal price ----
 
@@ -831,6 +838,9 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
   out <- mbind(out, setNames(CaptureBal_tmp / (budget.m + 1e-10) / 3.66 * 1e3,
                              "Price|Carbon|Captured (US$2017/t CO2)"))
 
+  out <- mbind(out, setNames(pm_CCUPrice * 1000 * 12 / 44,
+                             "Price|Carbon|CCU (US$2017/t CO2)"))
+
   if (is.null(regionSubsetList$EUR)) {
     out <- mbind(out, setNames(pm_taxCO2eq * 1000 * 12 / 44, "Price|Carbon|EU-wide Regulation For All Sectors (US$2017/t CO2)"))
   } else {
@@ -917,6 +927,7 @@ reportPrices <- function(gdx, output = NULL, regionSubsetList = NULL,
 
     "Price|Carbon (US$2017/t CO2)"                                    = "FE (EJ/yr)",
     "Price|Carbon|Captured (US$2017/t CO2)"                           = "FE (EJ/yr)",
+    "Price|Carbon|CCU (US$2017/t CO2)"                                = "FE (EJ/yr)",
     "Price|Carbon|EU-wide Regulation For All Sectors (US$2017/t CO2)" = "FE (EJ/yr)",
     "Price|Carbon|Guardrail (US$2017/t CO2)"                          = "FE (EJ/yr)",
     "Price|Carbon|SCC (US$2017/t CO2)"                                = "FE (EJ/yr)",

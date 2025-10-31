@@ -325,6 +325,16 @@ if ("Price|Carbon|SCC" %in% data$variable) {
 }
 ```
 
+```{r Captured Carbon Prices}
+showLinePlots(data, "Price|Carbon|Captured")
+showRegiLinePlots(data, "Price|Carbon|Captured")
+```
+
+```{r CCU Prices}
+showLinePlots(data, "Price|Carbon|CCU")
+showRegiLinePlots(data, "Price|Carbon|CCU")
+```
+
 ```{r CO2 Prices per sector}
 items <- c(
   "Price|Carbon|Demand|Transport",
