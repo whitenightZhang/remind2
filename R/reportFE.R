@@ -951,7 +951,7 @@ reportFE <- function(gdx, regionSubsetList = NULL,
         "FE|Industry|Chemicals|Ammonia|+|Gas-based with CC (EJ/yr)",                         NULL,      c("amSyNG","amSyNG_cc"),     c("amFinal_ng_cc", "fertilizer_amNg_cc"),    "chemicals",
         "FE|Industry|Chemicals|Ammonia|+|Liquids-based with CC (EJ/yr)",                     NULL,      c("amSyLiq","amSyLiq_cc"),     c("amFinal_liq_cc", "fertilizer_amLiq_cc"),  "chemicals",
         "FE|Industry|Chemicals|Ammonia|+|Green hydrogen-based (EJ/yr)",                      NULL,      "amSyH2",       c("amFinal_h2", "fertilizer_amh2"),          "chemicals",
-        
+
         "FE|Industry|Chemicals|Methanol|+|Solids-based (EJ/yr)",                             NULL,      "meSySol",      c("meFinal_sol", "hvc_meSol"),               "chemicals",
         "FE|Industry|Chemicals|Methanol|+|Bio-based (EJ/yr)",                                NULL,      "meSyBio",      c("meFinal_bio", "hvc_meBio"),               "chemicals",
         "FE|Industry|Chemicals|Methanol|+|Gas-based (EJ/yr)",                                NULL,      "meSyNG",       c("meFinal_ng", "hvc_meNg"),                 "chemicals",
@@ -1055,8 +1055,8 @@ reportFE <- function(gdx, regionSubsetList = NULL,
         "Production|Industry|Chemicals|Fertilizer (Mt/yr)",                "fertilizer",
         "Production|Industry|Chemicals|Methanol Final (Mt/yr)",            "methFinal",
         "Production|Industry|Chemicals|Ammonia Final (Mt/yr)",             "ammoFinal",
-        "Production|Industry|Chemicals|Methanol (Mt/yr)",                  c("methanol","methanolH2"),
-        "Production|Industry|Chemicals|Ammonia (Mt/yr)",                   c("ammonia","ammoniaH2"))
+        "Production|Industry|Chemicals|Methanol (Mt/yr)",                  c("methanol","methanolH2","methanolIm, methanolEx"),
+        "Production|Industry|Chemicals|Ammonia (Mt/yr)",                   c("ammonia","ammoniaH2","ammoniaIm, methanolEx"))
 
       out <- mbind(
         c(list(out), # pass a list of magpie objects
@@ -1086,6 +1086,7 @@ reportFE <- function(gdx, regionSubsetList = NULL,
           "Production|Industry|Chemicals|HVC|+|From chemical recycling (Mt/yr)",                       "hvc",        "hvc_stCrChemRe",
           "Production|Industry|Chemicals|HVC|+|From chemical recycling via methanol (Mt/yr)",          "hvc",        "hvc_mechemRe",
           "Production|Industry|Chemicals|HVC|+|From mechanical recycling (Mt/yr)",                     "hvc",        "mech_recycle",
+          "Production|Industry|Chemicals|HVC|+|From Import Methanol (Mt/yr)",                          "hvc",        "hvc_meTrade",
 
           "Production|Industry|Chemicals|Fertilizer|+|From solids-based ammonia (Mt/yr)",              "fertilizer", "fertilizer_amSol",
           "Production|Industry|Chemicals|Fertilizer|+|From gas-based ammonia (Mt/yr)",                 "fertilizer", "fertilizer_amNg",
@@ -1093,8 +1094,9 @@ reportFE <- function(gdx, regionSubsetList = NULL,
           "Production|Industry|Chemicals|Fertilizer|+|From solids-based ammonia with CC (Mt/yr)",      "fertilizer", "fertilizer_amSol_cc",
           "Production|Industry|Chemicals|Fertilizer|+|From gas-based ammonia with CC (Mt/yr)",         "fertilizer", "fertilizer_amNg_cc",
           "Production|Industry|Chemicals|Fertilizer|+|From liquids-based ammonia with CC (Mt/yr)",     "fertilizer", "fertilizer_amLiq_cc",
-          "Production|Industry|Chemicals|Fertilizer|+|From green hydrogen-based ammonia (Mt/yr)",      "fertilizer", "fertilizer_amh2",    
- 
+          "Production|Industry|Chemicals|Fertilizer|+|From green hydrogen-based ammonia (Mt/yr)",      "fertilizer", "fertilizer_amh2",
+          "Production|Industry|Chemicals|Fertilizer|+|Import Ammonia (Mt/yr)",                         "fertilizer", "fertilizer_amTrade",
+
           "Production|Industry|Chemicals|Methanol Final|+|Solids-based (Mt/yr)",                       "methFinal",  "meFinal_sol",
           "Production|Industry|Chemicals|Methanol Final|+|Bio-based (Mt/yr)",                          "methFinal",  "meFinal_bio",
           "Production|Industry|Chemicals|Methanol Final|+|Gas-based (Mt/yr)",                          "methFinal",  "meFinal_ng",
@@ -1107,6 +1109,7 @@ reportFE <- function(gdx, regionSubsetList = NULL,
           "Production|Industry|Chemicals|Methanol Final|+|Liquids-based with CC (Mt/yr)",              "methFinal",  "meFinal_liq_cc",
           "Production|Industry|Chemicals|Methanol Final|+|Green hydrogen-based (Mt/yr)",               "methFinal",  "meFinal_h2",
           "Production|Industry|Chemicals|Methanol Final|+|Chemical recycling (Mt/yr)",                 "methFinal",  "meFinal_chemRe",
+          "Production|Industry|Chemicals|Methanol Final|+|Import Methanol (Mt/yr)",                    "methFinal", "meFinal_trade",
 
           "Production|Industry|Chemicals|Ammonia Final|+|Solids-based (Mt/yr)",                        "ammoFinal",  "amFinal_sol",
           "Production|Industry|Chemicals|Ammonia Final|+|Gas-based (Mt/yr)",                           "ammoFinal",  "amFinal_ng",
@@ -1115,7 +1118,8 @@ reportFE <- function(gdx, regionSubsetList = NULL,
           "Production|Industry|Chemicals|Ammonia Final|+|Gas-based with CC (Mt/yr)",                   "ammoFinal",  "amFinal_ng_cc",
           "Production|Industry|Chemicals|Ammonia Final|+|Liquids-based with CC (Mt/yr)",               "ammoFinal",  "amFinal_liq_cc",
           "Production|Industry|Chemicals|Ammonia Final|+|Green hydrogen-based (Mt/yr)",                "ammoFinal",  "amFinal_h2",
- 
+          "Production|Industry|Chemicals|Ammonia Final|+|Import Ammonia (Mt/yr)",                      "ammoFinal", "amFinal_trade",
+
           "Production|Industry|Chemicals|Methanol|+|Solids-based (Mt/yr)",                             "methanol",   c("hvc_meSol",    "meFinal_sol"),
           "Production|Industry|Chemicals|Methanol|+|Bio-based (Mt/yr)",                                "methanolH2",   c("hvc_meBio",    "meFinal_bio"),
           "Production|Industry|Chemicals|Methanol|+|Gas-based (Mt/yr)",                                "methanol",   c("hvc_meNg",     "meFinal_ng"),
@@ -1128,6 +1132,8 @@ reportFE <- function(gdx, regionSubsetList = NULL,
           "Production|Industry|Chemicals|Methanol|+|Liquids-based with CC (Mt/yr)",                    "methanol",   c("hvc_meLiq_cc", "meFinal_liq_cc"),
           "Production|Industry|Chemicals|Methanol|+|Green hydrogen-based (Mt/yr)",                     "methanolH2", c("hvc_meh2",     "meFinal_h2"),
           "Production|Industry|Chemicals|Methanol|+|Chemical recycling (Mt/yr)",                       "methanolH2", c("hvc_mechemRe",     "meFinal_chemRe"),
+          "Production|Industry|Chemicals|Methanol|+|Import Methanol (Mt/yr)",                          "methanolIm", c("hvc_meTrade",     "meFinal_trade"),
+          "Production|Industry|Chemicals|Methanol|+|Export Methanol (Mt/yr)",                          "methanolEx", c("meTrade_trade"),
 
           "Production|Industry|Chemicals|Ammonia|+|Solids-based (Mt/yr)",                              "ammonia",    c("fertilizer_amSol",   "amFinal_sol"),
           "Production|Industry|Chemicals|Ammonia|+|Gas-based (Mt/yr)",                                 "ammonia",    c("fertilizer_amNg",    "amFinal_ng"),
@@ -1135,7 +1141,9 @@ reportFE <- function(gdx, regionSubsetList = NULL,
           "Production|Industry|Chemicals|Ammonia|+|Solids-based with CC (Mt/yr)",                      "ammonia",    c("fertilizer_amSol_cc","amFinal_sol_cc"),
           "Production|Industry|Chemicals|Ammonia|+|Gas-based with CC (Mt/yr)",                         "ammonia",    c("fertilizer_amNg_cc", "amFinal_ng_cc"),
           "Production|Industry|Chemicals|Ammonia|+|Liquids-based with CC (Mt/yr)",                     "ammonia",    c("fertilizer_amLiq_cc","amFinal_liq_cc"),
-          "Production|Industry|Chemicals|Ammonia|+|Green hydrogen-based (Mt/yr)",                      "ammoniaH2",  c("fertilizer_amh2",    "amFinal_h2"))
+          "Production|Industry|Chemicals|Ammonia|+|Green hydrogen-based (Mt/yr)",                      "ammoniaH2",  c("fertilizer_amh2",    "amFinal_h2"),
+          "Production|Industry|Chemicals|Ammonia|+|Import Ammonia (Mt/yr)",                            "ammoniaIm", c("fertilizer_amTrade",     "amFinal_trade"),
+          "Production|Industry|Chemicals|Ammonia|+|Export Ammonia (Mt/yr)",                            "ammoniaEx", c("amTrade_trade"))
 
        out <- mbind(c(list(out),
                     .select_sum_name_multiply(o37_ProdIndRoute, .mixer_to_selector(mixer), factor=1e3))) # factor 1e3 converts Gt/yr to Mt/yr
@@ -1143,6 +1151,17 @@ reportFE <- function(gdx, regionSubsetList = NULL,
     }
   }  
 
+  # # Make import values negative
+  # Export_vars <- c(
+  #   "Production|Industry|Chemicals|Methanol|+|Export Methanol (Mt/yr)",
+  #   "Production|Industry|Chemicals|Ammonia|+|Export Ammonia (Mt/yr)"
+  # )
+
+  # for (var in Export_vars) {
+  #   if (var %in% getNames(out)) {
+  #     out[, , var] <- -out[, , var]
+  #   }
+  # }
 
   #--- Transport reporting ---
 

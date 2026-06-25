@@ -762,7 +762,31 @@ if ("Production|Industry|Chemicals|Ammonia|Gas-based" %in% levels(data$variable)
     "Production|Industry|Chemicals|Ammonia|Solids-based with CC",
     "Production|Industry|Chemicals|Ammonia|Gas-based with CC",
     "Production|Industry|Chemicals|Ammonia|Liquids-based with CC",
-    "Production|Industry|Chemicals|Ammonia|Green hydrogen-based")
+    "Production|Industry|Chemicals|Ammonia|Green hydrogen-based",
+    "Production|Industry|Chemicals|Ammonia|Import Ammonia",
+    "Production|Industry|Chemicals|Ammonia|Export Ammonia"
+    )
+  # Non-process based scenarios have tot variable, but not items, which leads to errors in display;
+  # Therefore, filter data by scenarios that have the 'items' variables.
+  dscens <- data %>%
+    filter(.data$variable %in% items, .data$scenario != "historical") %>%
+    droplevels() %>%
+    pull('scenario') %>%
+    unique()
+  droute <- data %>%
+    filter(.data$scenario %in% dscens)
+showAreaAndBarPlots(droute, items, tot, orderVars="user", scales = "fixed")
+}
+```
+
+### Ammonia trade using process-based chemicals modeling
+```{r Ammonia trade by route}
+if ("Production|Industry|Chemicals|Ammonia|Gas-based" %in% levels(data$variable)){ # if process-based chemicals is used
+  tot <- "Production|Industry|Chemicals|Ammonia"
+  items <- c(
+    "Production|Industry|Chemicals|Ammonia|Import Ammonia",
+    "Production|Industry|Chemicals|Ammonia|Export Ammonia"
+    )
   # Non-process based scenarios have tot variable, but not items, which leads to errors in display;
   # Therefore, filter data by scenarios that have the 'items' variables.
   dscens <- data %>%
@@ -787,7 +811,9 @@ if ("Production|Industry|Chemicals|Fertilizer|From gas-based ammonia" %in% level
     "Production|Industry|Chemicals|Fertilizer|From solids-based ammonia with CC",
     "Production|Industry|Chemicals|Fertilizer|From gas-based ammonia with CC",
     "Production|Industry|Chemicals|Fertilizer|From liquids-based ammonia with CC",
-    "Production|Industry|Chemicals|Fertilizer|From green hydrogen-based ammonia")
+    "Production|Industry|Chemicals|Fertilizer|From green hydrogen-based ammonia",
+    "Production|Industry|Chemicals|Fertilizer|Import Ammonia"
+    )
 
   # Non-process based scenarios have tot variable, but not items, which leads to errors in display;
   # Therefore, filter data by scenarios that have the 'items' variables.
@@ -822,7 +848,9 @@ if ("Production|Industry|Chemicals|HVC|From liquids-based steam cracker" %in% le
     "Production|Industry|Chemicals|HVC|From green hydrogen-based methanol",
     "Production|Industry|Chemicals|HVC|From chemical recycling",
     "Production|Industry|Chemicals|HVC|From chemical recycling via methanol",
-    "Production|Industry|Chemicals|HVC|From mechanical recycling")
+    "Production|Industry|Chemicals|HVC|From mechanical recycling",
+    "Production|Industry|Chemicals|HVC|From Import Methanol"
+    )
   # Non-process based scenarios have tot variable, but not items, which leads to errors in display;
   # Therefore, filter data by scenarios that have the 'items' variables.
   dscens <- data %>%
@@ -852,7 +880,31 @@ if ("Production|Industry|Chemicals|Methanol|Gas-based" %in% levels(data$variable
     "Production|Industry|Chemicals|Methanol|Gas-based with CC",
     "Production|Industry|Chemicals|Methanol|Liquids-based with CC",
     "Production|Industry|Chemicals|Methanol|Green hydrogen-based",
-    "Production|Industry|Chemicals|Methanol|Chemical recycling")
+    "Production|Industry|Chemicals|Methanol|Chemical recycling",
+    "Production|Industry|Chemicals|Methanol|Import Methanol",
+    "Production|Industry|Chemicals|Methanol|Export Methanol"
+    )
+  # Non-process based scenarios have tot variable, but not items, which leads to errors in display;
+  # Therefore, filter data by scenarios that have the 'items' variables.
+  dscens <- data %>%
+    filter(.data$variable %in% items, .data$scenario != "historical") %>%
+    droplevels() %>%
+    pull('scenario') %>%
+    unique()
+  droute <- data %>%
+    filter(.data$scenario %in% dscens)
+showAreaAndBarPlots(droute, items, tot, orderVars="user", scales = "fixed")
+}
+```
+
+### Methanol trade using process-based chemicals modeling
+```{r Methanol trade by route}
+if ("Production|Industry|Chemicals|Methanol|Gas-based" %in% levels(data$variable)){ # if process-based chemicals is used
+  tot <- "Production|Industry|Chemicals|Methanol"
+  items <- c(
+    "Production|Industry|Chemicals|Methanol|Import Methanol",
+    "Production|Industry|Chemicals|Methanol|Export Methanol"
+    )
   # Non-process based scenarios have tot variable, but not items, which leads to errors in display;
   # Therefore, filter data by scenarios that have the 'items' variables.
   dscens <- data %>%
@@ -877,7 +929,9 @@ if ("Production|Industry|Chemicals|Ammonia Final|Gas-based" %in% levels(data$var
     "Production|Industry|Chemicals|Ammonia Final|Solids-based with CC",
     "Production|Industry|Chemicals|Ammonia Final|Gas-based with CC",
     "Production|Industry|Chemicals|Ammonia Final|Liquids-based with CC",
-    "Production|Industry|Chemicals|Ammonia Final|Green hydrogen-based")
+    "Production|Industry|Chemicals|Ammonia Final|Green hydrogen-based",
+    "Production|Industry|Chemicals|Ammonia Final|Import Ammonia"
+    )
   # Non-process based scenarios have tot variable, but not items, which leads to errors in display;
   # Therefore, filter data by scenarios that have the 'items' variables.
   dscens <- data %>%
@@ -907,7 +961,9 @@ if ("Production|Industry|Chemicals|Methanol Final|Gas-based" %in% levels(data$va
     "Production|Industry|Chemicals|Methanol Final|Gas-based with CC",
     "Production|Industry|Chemicals|Methanol Final|Liquids-based with CC",
     "Production|Industry|Chemicals|Methanol Final|Green hydrogen-based",
-    "Production|Industry|Chemicals|Methanol Final|Chemical recycling")
+    "Production|Industry|Chemicals|Methanol Final|Chemical recycling",
+    "Production|Industry|Chemicals|Methanol Final|Import Methanol"
+    )
   # Non-process based scenarios have tot variable, but not items, which leads to errors in display;
   # Therefore, filter data by scenarios that have the 'items' variables.
   dscens <- data %>%

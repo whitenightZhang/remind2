@@ -976,6 +976,23 @@ showAreaAndBarPlots(data, items_bioliq, tot_bioliq, orderVars = "user", scales =
 
 ```
 
+#### FE Transport w/ Bunkers Hydrogen by mode - Bar
+```{r FE Transport w/ Bunkers Hydrogen by mode - Bar}
+tot_hydrogen <- "FE|Transport|Liquids|Hydrogen"
+items_hydrogen <- c(
+  "FE|Transport|Pass|Road|LDV|Hydrogen",
+  "FE|Transport|Freight|Road|Hydrogen",
+  "FE|Transport|Pass|Road|Bus|Hydrogen",
+  "FE|Transport|Pass|Rail|Hydrogen",
+  "FE|Transport|Pass|Domestic Aviation|Hydrogen",
+  "FE|Transport|Bunkers|Freight|International Shipping|Hydrogen",
+  NULL
+)
+
+showAreaAndBarPlots(data, items_hydrogen, tot_hydrogen, orderVars = "user", scales = "fixed")
+
+```
+
 ### FE Transport w/ Bunkers - Line Plots
 ```{r Transport}
 showLinePlots(data, "FE|Transport")

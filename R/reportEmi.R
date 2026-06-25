@@ -2244,7 +2244,7 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     ),
     # carbon in synfuels
     setNames(
-      collapseDim(dimSums(vm_co2CCUshort[, , c("MeOH", "h22ch4")], dim = 3, na.rm = TRUE)) * GtC_2_MtCO2,
+      collapseDim(dimSums(vm_co2CCUshort[, , c("MeOH", "h22ch4","meSyH2","fertProdH2")], dim = 3, na.rm = TRUE)) * GtC_2_MtCO2,
       "Carbon Management|Usage (Mt CO2/yr)"
     ),
     # carbon in synthetic liquids
@@ -2256,6 +2256,16 @@ reportEmi <- function(gdx, output = NULL, regionSubsetList = NULL,
     setNames(
       collapseDim(vm_co2CCUshort[, , "h22ch4"]) * GtC_2_MtCO2,
       "Carbon Management|Usage|+|Synthetic Gases (Mt CO2/yr)"
+    ),
+    # carbon in chemical methanol
+    setNames(
+      collapseDim(vm_co2CCUshort[, , "meSyH2"]) * GtC_2_MtCO2,
+      "Carbon Management|Usage|+|Chemical Methanol (Mt CO2/yr)"
+    ),
+    # carbon in chemical fertilizer
+    setNames(
+      collapseDim(vm_co2CCUshort[, , "fertProdH2"]) * GtC_2_MtCO2,
+      "Carbon Management|Usage|+|Chemical Fertilizer (Mt CO2/yr)"
     )
   )
 

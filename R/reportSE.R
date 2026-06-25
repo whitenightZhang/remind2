@@ -329,7 +329,7 @@ reportSE <- function(gdx, regionSubsetList = NULL, t = c(seq(2005, 2060, 5), seq
     )
 
   ## Trade
-  if (module2realisation["trade", 2] == "se_trade") {
+  if (module2realisation["trade", 2] == "standard") {
 
     vm_Mport <- readGDX(gdx, "vm_Mport", field = "l", restore_zeros = FALSE)[, t, ]
     vm_Xport <- readGDX(gdx, "vm_Xport", field = "l", restore_zeros = FALSE)[, t, ]
